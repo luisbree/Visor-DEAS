@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { type Map as OLMap, Feature as OLFeature } from 'ol';
+import { type Map as OLMap, Feature as OLFeature } from 'ol'; // OLFeature importado como valor
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
 import { ChevronDown, ChevronUp, MapPin } from 'lucide-react';
 import Draw from 'ol/interaction/Draw';
 import DragBox from 'ol/interaction/DragBox';
+import DragZoom from 'ol/interaction/DragZoom'; // Importar DragZoom
 import { platformModifierKeyOnly } from 'ol/events/condition';
 import { KML, GeoJSON } from 'ol/format';
 import VectorLayer from 'ol/layer/Vector';
@@ -152,7 +153,11 @@ export default function GeoMapperClient() {
   const drawingSourceRef = useRef<VectorSourceType<OLFeature<any>> | null>(null);
   const drawingLayerRef = useRef<VectorLayerType<VectorSourceType<OLFeature<any>>> | null>(null);
   const drawInteractionRef = useRef<Draw | null>(null);
+  
   const dragBoxInteractionRef = useRef<DragBox | null>(null);
+  const defaultDragZoomInteractionRef = useRef<DragZoom | null>(null);
+  const wasDragZoomActiveRef = useRef<boolean>(false);
+
 
   const [activeDrawTool, setActiveDrawTool] = useState<string | null>(null);
   const [isFetchingOSM, setIsFetchingOSM] = useState(false);
@@ -329,9 +334,13 @@ export default function GeoMapperClient() {
     if (!isInspectModeActive || !mapRef.current || activeDrawTool) return;
 
     const clickedPixel = mapRef.current.getEventPixel(event.originalEvent);
-    // Check if the click was part of a drag operation (for DragBox)
-    if (dragBoxInteractionRef.current && dragBoxInteractionRef.current.getActive() && (event.originalEvent.type === 'pointermove' || event.originalEvent.type === 'mousemove')) {
-        return; // Let DragBox handle it
+    if (dragBoxInteractionRef.current && (event.originalEvent.type === 'pointermove' || event.originalEvent.type === 'mousemove')) {
+        // This condition might be too broad. A better check is if a drag operation is in progress.
+        // However, DragBox doesn't expose a simple "isDragging" state.
+        // For now, if a dragbox exists, we assume complex drag interactions are handled by it or are not simple clicks.
+        // This check is to prevent single click from firing during a drag box operation, which seems less likely now with platformModifierKeyOnly.
+        // It's safer to let DragBox exclusively handle its events when it's supposed to be active.
+        return; 
     }
 
     const featuresAtPixel: OLFeature<any>[] = [];
@@ -339,8 +348,8 @@ export default function GeoMapperClient() {
         if (feature instanceof OLFeature) {
             featuresAtPixel.push(feature);
         }
-        return false; // Continue to check all features at pixel
-    }, { hitTolerance: 5 }); // Add some hit tolerance
+        return false; 
+    }, { hitTolerance: 5 }); 
 
     processAndDisplayFeatures(featuresAtPixel);
 
@@ -351,7 +360,6 @@ export default function GeoMapperClient() {
     const extent = event.target.getGeometry().getExtent();
     const foundFeatures: OLFeature<any>[] = [];
 
-    // Check loaded vector layers
     layers.forEach(layer => {
       if (layer.visible && layer.olLayer) {
         const source = layer.olLayer.getSource();
@@ -363,7 +371,6 @@ export default function GeoMapperClient() {
       }
     });
 
-    // Check drawing layer
     if (drawingLayerRef.current && drawingSourceRef.current) {
       drawingSourceRef.current.forEachFeatureIntersectingExtent(extent, (feature) => {
         if (feature instanceof OLFeature) foundFeatures.push(feature);
@@ -378,44 +385,62 @@ export default function GeoMapperClient() {
     const currentMap = mapRef.current;
     if (!currentMap) return;
 
-    if (isInspectModeActive && !activeDrawTool) {
-      currentMap.on('singleclick', handleMapClick);
-
-      if (!dragBoxInteractionRef.current) {
-        dragBoxInteractionRef.current = new DragBox({
-          condition: platformModifierKeyOnly, // Default: Shift + Drag
-        });
-        dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
-      }
-      currentMap.addInteraction(dragBoxInteractionRef.current);
-
-    } else {
-      currentMap.un('singleclick', handleMapClick);
-      if (dragBoxInteractionRef.current) {
-        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
-        currentMap.removeInteraction(dragBoxInteractionRef.current);
-        // dragBoxInteractionRef.current.dispose(); // Dispose if not reusing
-        // dragBoxInteractionRef.current = null; // Don't nullify if we might re-add it.
-      }
-      if (!isInspectModeActive) {
-        setSelectedFeatureAttributes(null);
-        setIsFeatureAttributesPanelVisible(false);
-      }
-    }
-
-    return () => {
-      if (currentMap) {
+    // Cleanup function
+    const cleanupInspectionInteractions = () => {
         currentMap.un('singleclick', handleMapClick);
         if (dragBoxInteractionRef.current) {
-          dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
-          // Check if interaction is still on map before removing
-          const interactions = currentMap.getInteractions().getArray();
-          if (interactions.includes(dragBoxInteractionRef.current)) {
-            currentMap.removeInteraction(dragBoxInteractionRef.current);
-          }
+            dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
+            const interactionsArray = currentMap.getInteractions().getArray();
+            if (interactionsArray.includes(dragBoxInteractionRef.current)) {
+                currentMap.removeInteraction(dragBoxInteractionRef.current);
+            }
+            dragBoxInteractionRef.current.dispose();
+            dragBoxInteractionRef.current = null;
         }
-      }
+        // Restore DragZoom if it was managed
+        if (defaultDragZoomInteractionRef.current) {
+            defaultDragZoomInteractionRef.current.setActive(wasDragZoomActiveRef.current);
+            defaultDragZoomInteractionRef.current = null; 
+        }
     };
+
+    if (isInspectModeActive && !activeDrawTool) {
+        currentMap.on('singleclick', handleMapClick);
+
+        // Manage default DragZoom interaction
+        currentMap.getInteractions().forEach(interaction => {
+            if (interaction instanceof DragZoom) {
+                defaultDragZoomInteractionRef.current = interaction;
+                wasDragZoomActiveRef.current = interaction.getActive();
+                interaction.setActive(false); // Deactivate while our DragBox is for inspection
+            }
+        });
+
+        // Setup our custom DragBox for inspection
+        if (!dragBoxInteractionRef.current) {
+            dragBoxInteractionRef.current = new DragBox({
+                condition: platformModifierKeyOnly, // Shift + Drag
+            });
+        }
+        dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
+        // Ensure it's added (addInteraction is safe if already added)
+        currentMap.addInteraction(dragBoxInteractionRef.current);
+
+    } else {
+        // If not in inspect mode or a draw tool is active, perform cleanup.
+        // The cleanup function will handle removing listeners and interactions,
+        // and restoring the default DragZoom state.
+        cleanupInspectionInteractions();
+        
+        // Also, if inspection is explicitly turned off, hide the attributes panel
+        if (!isInspectModeActive) {
+             setSelectedFeatureAttributes(null);
+             setIsFeatureAttributesPanelVisible(false);
+        }
+    }
+
+    return cleanupInspectionInteractions; // Return the cleanup function for useEffect
+
   }, [isInspectModeActive, activeDrawTool, handleMapClick, handleDragBoxEnd]);
 
 
@@ -451,6 +476,12 @@ export default function GeoMapperClient() {
     const position = panelType === 'tools' ? toolsPanelPosition : layersPanelPosition;
 
     if (!panelRef.current) return;
+    
+    const targetElement = e.target as HTMLElement;
+    if (targetElement.closest('button')) { 
+        return;
+    }
+
     setDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -827,7 +858,7 @@ export default function GeoMapperClient() {
   return (
     <div className="flex h-screen w-screen flex-col bg-background text-foreground">
       <header className="bg-gray-800/60 backdrop-blur-md text-white p-4 shadow-md flex items-center">
-        <MapPin className="mr-3 h-7 w-7 text-primary" /> {/* Using MapPin from lucide */}
+        <MapPin className="mr-3 h-7 w-7 text-primary" />
         <h1 className="text-2xl font-semibold">Visor DEAS</h1>
       </header>
       <div ref={mapAreaRef} className="relative flex-1 overflow-hidden">
@@ -879,7 +910,7 @@ export default function GeoMapperClient() {
                   onToggleInspectMode={() => {
                     const newInspectModeState = !isInspectModeActive;
                     setIsInspectModeActive(newInspectModeState);
-                    if (!newInspectModeState) { // If turning off inspect mode
+                    if (!newInspectModeState) { 
                       setIsFeatureAttributesPanelVisible(false);
                       setSelectedFeatureAttributes(null);
                     }
