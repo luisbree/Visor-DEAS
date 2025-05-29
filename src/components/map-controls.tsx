@@ -17,7 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Card components are no longer needed here as Inspector section is removed
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
   Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon
@@ -42,9 +43,9 @@ import { Separator } from '@/components/ui/separator';
 interface RenderConfig {
   baseLayers?: boolean;
   layers?: boolean;
-  inspector?: boolean;
-  osmCapabilities?: boolean; // New flag to control the entire OSM section
-  drawing?: boolean; // Still needed for drawing tools
+  inspector?: boolean; // For the button in layers panel
+  osmCapabilities?: boolean;
+  drawing?: boolean;
 }
 
 interface BaseLayerOptionForSelect {
@@ -67,11 +68,10 @@ interface MapControlsProps {
   onRemoveLayer?: (layerId: string) => void;
   onZoomToLayerExtent?: (layerId: string) => void;
   
-  // Inspector Props (only for tools panel)
+  // Inspector Props (passed to layers panel for the button)
   isInspectModeActive?: boolean;
   onToggleInspectMode?: () => void;
-  selectedFeatureAttributes?: Record<string, any> | null;
-  onClearSelectedFeature?: () => void;
+  // selectedFeatureAttributes and onClearSelectedFeature are removed as MapControls no longer displays them
 
   // Drawing Props (only for tools panel, drawing tools themselves)
   activeDrawTool?: string | null;
@@ -118,8 +118,8 @@ const MapControls: React.FC<MapControlsProps> = ({
 
   isInspectModeActive = false,
   onToggleInspectMode = () => {},
-  selectedFeatureAttributes = null,
-  onClearSelectedFeature = () => {},
+  // selectedFeatureAttributes is no longer used by this component
+  // onClearSelectedFeature is no longer used by this component
 
   activeDrawTool = null,
   onToggleDrawingTool = () => {},
@@ -149,24 +149,22 @@ const MapControls: React.FC<MapControlsProps> = ({
   const prevLayersLengthRef = React.useRef(layers.length);
 
   React.useEffect(() => {
-    // Auto-open layers section if it's rendered and layers are added for the first time
+    const initialOpenItems: string[] = [];
     if (renderConfig.layers && layers.length > 0 && prevLayersLengthRef.current === 0) {
-       if (!openAccordionItems.includes('layers-section')) {
-         setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'layers-section']);
-       }
+      initialOpenItems.push('layers-section');
     }
-    // Auto-open OSM section if it's rendered
-    if (renderConfig.osmCapabilities && !openAccordionItems.includes('openstreetmap-section')) {
-        // setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'openstreetmap-section']);
-    }
-    // Auto-open drawing tools section if it's rendered
-    if (renderConfig.drawing && !openAccordionItems.includes('drawing-tools-section')) {
-        // setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'drawing-tools-section']);
-    }
-
+    // Removed auto-open for inspector as it's no longer an accordion item
+    // if (renderConfig.osmCapabilities) { // Example: keep OSM open by default if desired
+    //   initialOpenItems.push('openstreetmap-section');
+    // }
+    // if (renderConfig.drawing) { // Example: keep Drawing open by default if desired
+    //  initialOpenItems.push('drawing-tools-section');
+    // }
+    setOpenAccordionItems(initialOpenItems);
 
     prevLayersLengthRef.current = layers.length;
-  }, [layers.length, renderConfig.layers, renderConfig.osmCapabilities, renderConfig.drawing, openAccordionItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers.length, renderConfig.layers, renderConfig.osmCapabilities, renderConfig.drawing]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,32 +366,48 @@ const MapControls: React.FC<MapControlsProps> = ({
         )}
 
         {renderConfig.layers && (
-          <div className="mb-2">
-            <Input
-              id={`${uniqueIdPrefix}-file-upload-input-layers`}
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              accept=".kml,.kmz,.geojson,.json,.zip,.shp,.dbf"
-              className="hidden"
-              disabled={isLoading}
-            />
-            <Button 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-primary/70 hover:bg-primary/90 text-primary-foreground text-xs h-8"
-              disabled={isLoading}
-              title="Importar capa desde archivo"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
+          <div className="mb-2 p-2 bg-white/5 rounded-md">
+            <div className="flex items-center gap-2">
+              <Input
+                id={`${uniqueIdPrefix}-file-upload-input-layers`}
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                accept=".kml,.kmz,.geojson,.json,.zip,.shp,.dbf"
+                className="hidden"
+                disabled={isLoading}
+              />
+              <Button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 bg-primary/70 hover:bg-primary/90 text-primary-foreground text-xs h-8"
+                disabled={isLoading}
+                title="Importar capa desde archivo"
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                {isLoading ? 'Procesando...' : 'Importar'}
+              </Button>
+              {renderConfig.inspector && onToggleInspectMode && (
+                <Button 
+                  onClick={onToggleInspectMode} 
+                  variant={isInspectModeActive ? "secondary" : "outline"} 
+                  className={`flex-1 text-xs h-8 ${isInspectModeActive ? 'bg-accent/30 hover:bg-accent/40 text-white' : 'border-white/30 hover:bg-white/10 text-white/90'}`}
+                  disabled={!!activeDrawTool} 
+                  title="Activar/Desactivar modo inspector"
+                >
+                  <MousePointerClick className="mr-2 h-4 w-4" />
+                  {isInspectModeActive ? 'Inspeccionando' : 'Inspeccionar'}
+                </Button>
               )}
-              {isLoading ? 'Procesando...' : 'Importar'}
-            </Button>
+            </div>
+             <Separator className="my-3 bg-white/15" />
           </div>
         )}
+
 
         <Accordion 
           type="multiple" 
@@ -463,55 +477,76 @@ const MapControls: React.FC<MapControlsProps> = ({
             </AccordionItem>
           )}
 
-          {renderConfig.inspector && (
-            <AccordionItem value="inspector-section" className="border-b-0 bg-white/5 rounded-md">
+          {/* Inspector section removed from here */}
+          
+          {renderConfig.drawing && (
+            <AccordionItem value="drawing-tools-section" className="border-b-0 bg-white/5 rounded-md">
               <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
                 <SectionHeader 
-                  title="Inspector de Entidades"
-                  icon={MousePointerClick} 
+                  title="Herramientas de Dibujo"
+                  description="Dibuje en el mapa y guarde sus trazos."
+                  icon={PenLine} 
                 />
               </AccordionTrigger>
               <AccordionContent className="p-3 pt-2 space-y-2 border-t border-white/10 bg-transparent rounded-b-md">
-                <Button 
-                  onClick={onToggleInspectMode} 
-                  variant={isInspectModeActive ? "secondary" : "outline"} 
-                  className={`w-full text-xs h-8 ${isInspectModeActive ? 'bg-accent/30 hover:bg-accent/40 text-white' : 'border-white/30 hover:bg-white/10 text-white/90'}`}
-                  disabled={!!activeDrawTool} 
-                >
-                  {isInspectModeActive ? 'Modo Inspector Activo' : 'Activar Modo Inspector'}
-                </Button>
-
-                {selectedFeatureAttributes ? (
-                  <>
-                    <Button onClick={onClearSelectedFeature} variant="outline" className="w-full text-xs h-8 border-white/30 hover:bg-white/10 text-white/90">
-                      <XCircle className="mr-2 h-3 w-3" /> Limpiar Selección
-                    </Button>
-                    <Card className="bg-black/20 border-white/10 max-h-32 text-white">
-                      <CardHeader className="p-1.5">
-                        <CardTitle className="text-xs font-medium text-white/90">Atributos de Entidad</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-1.5 pt-0">
-                        <ScrollArea className="h-24">
-                          <ul className="text-xs text-white/80 space-y-1">
-                            {Object.entries(selectedFeatureAttributes).map(([key, value]) => (
-                              <li key={key} className="truncate">
-                                <span className="font-semibold">{key}:</span> {String(value)}
-                              </li>
-                            ))}
-                          </ul>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  </>
-                ) : (
-                  isInspectModeActive && (
-                    <p className="text-xs text-center text-gray-300/80 py-2">Haga clic en una entidad del mapa para ver sus atributos.</p>
-                  )
+                <div className="grid grid-cols-3 gap-2">
+                  <Button 
+                    onClick={() => onToggleDrawingTool('Polygon')} 
+                    variant={getButtonVariant('Polygon')} 
+                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
+                    data-state={activeDrawTool === 'Polygon' ? 'active' : 'inactive'}
+                    title="Dibujar Polígono (para obtener datos OSM)"
+                  >
+                    <Square className="mr-1 h-3 w-3" /> Polígono
+                  </Button>
+                  <Button 
+                    onClick={() => onToggleDrawingTool('LineString')} 
+                    variant={getButtonVariant('LineString')}
+                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
+                    data-state={activeDrawTool === 'LineString' ? 'active' : 'inactive'}
+                    title="Dibujar Línea"
+                  >
+                    <PenLine className="mr-1 h-3 w-3" /> Línea
+                  </Button>
+                  <Button 
+                    onClick={() => onToggleDrawingTool('Point')} 
+                    variant={getButtonVariant('Point')}
+                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
+                    data-state={activeDrawTool === 'Point' ? 'active' : 'inactive'}
+                    title="Dibujar Punto"
+                  >
+                    <Dot className="mr-1 h-3 w-3" /> Punto
+                  </Button>
+                </div>
+                {activeDrawTool && (
+                  <Button 
+                    onClick={onStopDrawingTool} 
+                    variant="outline" 
+                    className="w-full text-xs h-8 border-white/30 hover:bg-white/10 text-white/90"
+                  >
+                    <Ban className="mr-2 h-3 w-3" /> Detener Dibujo
+                  </Button>
                 )}
+                <Separator className="my-2 bg-white/20" />
+                <Button 
+                  onClick={onClearDrawnFeatures} 
+                  variant="outline" 
+                  className="w-full text-xs h-8 border-white/30 hover:bg-red-500/20 hover:text-red-300 text-white/90"
+                  disabled={!!activeDrawTool}
+                >
+                  <Eraser className="mr-2 h-3 w-3" /> Limpiar Dibujos
+                </Button>
+                <Button 
+                  onClick={onSaveDrawnFeaturesAsKML} 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 mt-2"
+                  disabled={!!activeDrawTool}
+                >
+                  <Save className="mr-2 h-3 w-3" /> Guardar Dibujos (KML)
+                </Button>
               </AccordionContent>
             </AccordionItem>
           )}
-          
+
           {renderConfig.osmCapabilities && (
              <AccordionItem value="openstreetmap-section" className="border-b-0 bg-white/5 rounded-md">
               <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
@@ -581,74 +616,6 @@ const MapControls: React.FC<MapControlsProps> = ({
             </AccordionItem>
           )}
 
-          {renderConfig.drawing && (
-            <AccordionItem value="drawing-tools-section" className="border-b-0 bg-white/5 rounded-md">
-              <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
-                <SectionHeader 
-                  title="Herramientas de Dibujo"
-                  description="Dibuje en el mapa y guarde sus trazos."
-                  icon={PenLine} 
-                />
-              </AccordionTrigger>
-              <AccordionContent className="p-3 pt-2 space-y-2 border-t border-white/10 bg-transparent rounded-b-md">
-                <div className="grid grid-cols-3 gap-2">
-                  <Button 
-                    onClick={() => onToggleDrawingTool('Polygon')} 
-                    variant={getButtonVariant('Polygon')} 
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'Polygon' ? 'active' : 'inactive'}
-                    title="Dibujar Polígono (para obtener datos OSM)"
-                  >
-                    <Square className="mr-1 h-3 w-3" /> Polígono
-                  </Button>
-                  <Button 
-                    onClick={() => onToggleDrawingTool('LineString')} 
-                    variant={getButtonVariant('LineString')}
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'LineString' ? 'active' : 'inactive'}
-                    title="Dibujar Línea"
-                  >
-                    <PenLine className="mr-1 h-3 w-3" /> Línea
-                  </Button>
-                  <Button 
-                    onClick={() => onToggleDrawingTool('Point')} 
-                    variant={getButtonVariant('Point')}
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'Point' ? 'active' : 'inactive'}
-                    title="Dibujar Punto"
-                  >
-                    <Dot className="mr-1 h-3 w-3" /> Punto
-                  </Button>
-                </div>
-                {activeDrawTool && (
-                  <Button 
-                    onClick={onStopDrawingTool} 
-                    variant="outline" 
-                    className="w-full text-xs h-8 border-white/30 hover:bg-white/10 text-white/90"
-                  >
-                    <Ban className="mr-2 h-3 w-3" /> Detener Dibujo
-                  </Button>
-                )}
-                <Separator className="my-2 bg-white/20" />
-                <Button 
-                  onClick={onClearDrawnFeatures} 
-                  variant="outline" 
-                  className="w-full text-xs h-8 border-white/30 hover:bg-red-500/20 hover:text-red-300 text-white/90"
-                  disabled={!!activeDrawTool}
-                >
-                  <Eraser className="mr-2 h-3 w-3" /> Limpiar Dibujos
-                </Button>
-                <Button 
-                  onClick={onSaveDrawnFeaturesAsKML} 
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 mt-2"
-                  disabled={!!activeDrawTool}
-                >
-                  <Save className="mr-2 h-3 w-3" /> Guardar Dibujos (KML)
-                </Button>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
         </Accordion>
       </div>
     </ScrollArea>
@@ -656,3 +623,5 @@ const MapControls: React.FC<MapControlsProps> = ({
 };
 
 export default MapControls;
+
+    

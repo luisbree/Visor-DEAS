@@ -140,7 +140,7 @@ export default function GeoMapperClient() {
   const layersPanelDragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
 
   const [isInspectModeActive, setIsInspectModeActive] = useState(false);
-  const [selectedFeatureAttributes, setSelectedFeatureAttributes] = useState<Record<string, any> | null>(null);
+  const [selectedFeatureAttributes, setSelectedFeatureAttributes] = useState<Record<string, any> | null>(null); // Still needed for map click logic and toasts
 
   const { toast } = useToast();
 
@@ -299,9 +299,14 @@ export default function GeoMapperClient() {
           attributesToShow[key] = properties[key];
         }
       }
-      setSelectedFeatureAttributes(attributesToShow);
+      setSelectedFeatureAttributes(attributesToShow); // State is updated for potential use (e.g., toasts, future display)
       featureFound = true;
-      toast({ title: "Entidad Seleccionada", description: "Atributos mostrados en el panel." });
+      // Optionally, toast that a feature was selected if its attributes aren't displayed directly in a panel anymore
+      if (Object.keys(attributesToShow).length > 0) {
+        toast({ title: "Entidad Seleccionada", description: `Nombre: ${attributesToShow.name || attributesToShow.NAME || 'N/A'}. Click para más detalles si la funcionalidad se expande.` });
+      } else {
+         toast({ title: "Entidad Seleccionada", description: "La entidad no tiene atributos visibles." });
+      }
       return true; 
     });
     if (!featureFound) setSelectedFeatureAttributes(null);
@@ -313,6 +318,8 @@ export default function GeoMapperClient() {
         mapRef.current.on('singleclick', handleMapClick);
       } else {
         mapRef.current.un('singleclick', handleMapClick);
+        // If inspect mode is deactivated, clear any selected attributes
+        if (!isInspectModeActive) setSelectedFeatureAttributes(null);
       }
     }
     return () => {
@@ -320,10 +327,8 @@ export default function GeoMapperClient() {
     };
   }, [isInspectModeActive, activeDrawTool, handleMapClick]);
 
-  const clearSelectedFeature = useCallback(() => {
-    setSelectedFeatureAttributes(null);
-    toast({ title: "Selección Limpiada", description: "Ninguna entidad seleccionada." });
-  }, [toast]);
+  // onClearSelectedFeature is no longer directly triggered by MapControls button
+  // but internal logic might still use/clear selectedFeatureAttributes
 
   const zoomToLayerExtent = useCallback((layerId: string) => {
     if (!mapRef.current) return;
@@ -721,11 +726,12 @@ export default function GeoMapperClient() {
 
   const layersPanelRenderConfig = { 
     baseLayers: true,
-    layers: true 
+    layers: true,
+    inspector: true, // Enable inspector button in layers panel
   };
   const toolsPanelRenderConfig = { 
-    inspector: true, 
-    osmCapabilities: true, // Use the new flag
+    inspector: false, // Disable inspector section in tools panel
+    osmCapabilities: true,
     drawing: true 
   };
 
@@ -771,12 +777,10 @@ export default function GeoMapperClient() {
                   onRemoveLayer={removeLayer}
                   onZoomToLayerExtent={zoomToLayerExtent}
                   onAddLayer={addLayer}
-                  // Props not relevant to layers panel, pass defaults or empty functions
-                  isInspectModeActive={false} 
-                  onToggleInspectMode={() => {}} 
-                  selectedFeatureAttributes={null} 
-                  onClearSelectedFeature={() => {}} 
-                  activeDrawTool={null} 
+                  isInspectModeActive={isInspectModeActive} 
+                  onToggleInspectMode={() => setIsInspectModeActive(!isInspectModeActive)} 
+                  // selectedFeatureAttributes and onClearSelectedFeature not passed as MapControls won't use them
+                  activeDrawTool={null} // Not relevant for layers panel
                   onToggleDrawingTool={() => {}} 
                   onStopDrawingTool={() => {}} 
                   onClearDrawnFeatures={() => {}} 
@@ -820,11 +824,10 @@ export default function GeoMapperClient() {
             <div className="flex-1 min-h-0 bg-transparent" style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               <MapControls
                   renderConfig={toolsPanelRenderConfig}
-                  onAddLayer={addLayer} 
-                  isInspectModeActive={isInspectModeActive}
-                  onToggleInspectMode={() => setIsInspectModeActive(!isInspectModeActive)}
-                  selectedFeatureAttributes={selectedFeatureAttributes}
-                  onClearSelectedFeature={clearSelectedFeature}
+                  onAddLayer={addLayer} // Still might be useful if tools panel ever adds layers
+                  // Inspector props not relevant for tools panel anymore
+                  isInspectModeActive={false} 
+                  onToggleInspectMode={() => {}} 
                   activeDrawTool={activeDrawTool}
                   onToggleDrawingTool={toggleDrawingTool}
                   onStopDrawingTool={stopDrawingTool}
@@ -839,7 +842,7 @@ export default function GeoMapperClient() {
                   onDownloadFormatChange={setDownloadFormat}
                   onDownloadOSMLayers={handleDownloadOSMLayers}
                   isDownloading={isDownloading}
-                  // Props not relevant to tools panel, pass defaults or empty functions
+                  // Base Layers and Layer Management props not relevant for tools panel
                   availableBaseLayers={[]}
                   activeBaseLayerId={""}
                   onChangeBaseLayer={() => {}}
@@ -857,3 +860,5 @@ export default function GeoMapperClient() {
     </div>
   );
 }
+
+    
