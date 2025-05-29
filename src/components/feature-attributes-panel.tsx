@@ -12,14 +12,12 @@ interface FeatureAttributesPanelProps {
   featuresAttributes: Record<string, any>[] | null;
   isVisible: boolean;
   onClose: () => void;
-  // mapAreaRef prop is no longer needed for drag restriction
 }
 
 const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   featuresAttributes,
   isVisible,
   onClose,
-  // mapAreaRef, // Removed as prop
 }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [size, setSize] = useState({ width: 400, height: 300 });
@@ -29,8 +27,13 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
-    if ((e.target as HTMLElement).closest('.no-drag')) return;
-
+    // Permitir arrastre solo si el target directo es el header o el grip, 
+    // y no un botón dentro del header.
+    const targetElement = e.target as HTMLElement;
+    if (targetElement.closest('button')) { // No arrastrar si se hace clic en un botón dentro del header
+        return;
+    }
+    
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -50,7 +53,8 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
       
-      // Dragging is no longer restricted to any boundaries
+      // El panel se puede mover libremente. Las restricciones al mapAreaRef fueron eliminadas.
+      // Si se deseara restringir al viewport, aquí se añadiría esa lógica.
       
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
@@ -112,11 +116,11 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       }}
     >
       <CardHeader 
-        className="flex flex-row items-center justify-between p-3 bg-gray-700/80 cursor-grab rounded-t-lg no-drag"
+        className="flex flex-row items-center justify-between p-3 bg-gray-700/80 cursor-grab rounded-t-lg" // Eliminada la clase 'no-drag'
         onMouseDown={handleMouseDownOnHeader}
       >
         <div className="flex items-center">
-            <GripVertical className="h-5 w-5 mr-2 text-gray-400" />
+            <GripVertical className="h-5 w-5 mr-2 text-gray-400 pointer-events-none" /> {/* pointer-events-none para que el mousedown pase al CardHeader */}
             <CardTitle className="text-base font-semibold text-white">Atributos de Entidad(es)</CardTitle>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-white hover:bg-gray-600/80">
@@ -161,5 +165,4 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
-
     
