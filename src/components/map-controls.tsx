@@ -20,7 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
-  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map
+  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon
 } from 'lucide-react';
 import {
   Accordion,
@@ -43,9 +43,8 @@ interface RenderConfig {
   baseLayers?: boolean;
   layers?: boolean;
   inspector?: boolean;
-  osmCategories?: boolean;
-  drawing?: boolean;
-  download?: boolean;
+  osmCapabilities?: boolean; // New flag to control the entire OSM section
+  drawing?: boolean; // Still needed for drawing tools
 }
 
 interface BaseLayerOptionForSelect {
@@ -63,7 +62,7 @@ interface MapControlsProps {
   onChangeBaseLayer?: (id: string) => void;
 
   // Layer Management Props (only for layers panel)
-  layers?: MapLayer[]; // Made optional for tools panel
+  layers?: MapLayer[]; 
   onToggleLayerVisibility?: (layerId: string) => void;
   onRemoveLayer?: (layerId: string) => void;
   onZoomToLayerExtent?: (layerId: string) => void;
@@ -74,19 +73,19 @@ interface MapControlsProps {
   selectedFeatureAttributes?: Record<string, any> | null;
   onClearSelectedFeature?: () => void;
 
-  // Drawing & OSM Props (only for tools panel)
+  // Drawing Props (only for tools panel, drawing tools themselves)
   activeDrawTool?: string | null;
   onToggleDrawingTool?: (toolType: 'Polygon' | 'LineString' | 'Point') => void;
   onStopDrawingTool?: () => void;
   onClearDrawnFeatures?: () => void;
   onSaveDrawnFeaturesAsKML?: () => void;
+  
+  // OSM Functionality Props (for the new consolidated OSM section in tools panel)
   isFetchingOSM?: boolean;
   onFetchOSMDataTrigger?: () => void;
   osmCategoriesForSelection?: { id: string; name: string; }[];
   selectedOSMCategoryIds?: string[];
   onSelectedOSMCategoriesChange?: (ids: string[]) => void;
-
-  // Download Props (only for tools panel)
   downloadFormat?: string;
   onDownloadFormatChange?: (format: string) => void;
   onDownloadOSMLayers?: () => void;
@@ -150,13 +149,24 @@ const MapControls: React.FC<MapControlsProps> = ({
   const prevLayersLengthRef = React.useRef(layers.length);
 
   React.useEffect(() => {
+    // Auto-open layers section if it's rendered and layers are added for the first time
     if (renderConfig.layers && layers.length > 0 && prevLayersLengthRef.current === 0) {
        if (!openAccordionItems.includes('layers-section')) {
          setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'layers-section']);
        }
     }
+    // Auto-open OSM section if it's rendered
+    if (renderConfig.osmCapabilities && !openAccordionItems.includes('openstreetmap-section')) {
+        // setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'openstreetmap-section']);
+    }
+    // Auto-open drawing tools section if it's rendered
+    if (renderConfig.drawing && !openAccordionItems.includes('drawing-tools-section')) {
+        // setOpenAccordionItems(prevOpenItems => [...prevOpenItems, 'drawing-tools-section']);
+    }
+
+
     prevLayersLengthRef.current = layers.length;
-  }, [layers.length, renderConfig.layers, openAccordionItems]);
+  }, [layers.length, renderConfig.layers, renderConfig.osmCapabilities, renderConfig.drawing, openAccordionItems]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -502,33 +512,71 @@ const MapControls: React.FC<MapControlsProps> = ({
             </AccordionItem>
           )}
           
-          {renderConfig.osmCategories && (
-            <AccordionItem value="osm-categories-section" className="border-b-0 bg-white/5 rounded-md">
+          {renderConfig.osmCapabilities && (
+             <AccordionItem value="openstreetmap-section" className="border-b-0 bg-white/5 rounded-md">
               <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
                 <SectionHeader 
-                  title="Categorías OSM a Descargar"
-                  description="Seleccione qué tipos de entidades OSM desea obtener."
-                  icon={ListFilter} 
+                  title="OpenStreetMap"
+                  description="Obtener y descargar datos de OSM."
+                  icon={MapIcon} 
                 />
               </AccordionTrigger>
-              <AccordionContent className="p-3 pt-2 border-t border-white/10 bg-transparent rounded-b-md">
-                <ScrollArea className="h-32"> 
-                  <div className="space-y-1.5">
-                    {osmCategoriesForSelection.map(category => (
-                      <div key={category.id} className="flex items-center space-x-2 p-1.5 rounded-md hover:bg-white/5">
-                        <Checkbox
-                          id={`osm-cat-${category.id}`}
-                          checked={selectedOSMCategoryIds.includes(category.id)}
-                          onCheckedChange={(checked) => handleOSMCategoryChange(category.id, !!checked)}
-                          className="data-[state=checked]:bg-accent data-[state=checked]:border-accent-foreground border-muted-foreground/70"
-                        />
-                        <Label htmlFor={`osm-cat-${category.id}`} className="text-xs font-medium text-white/90 cursor-pointer">
-                          {category.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+              <AccordionContent className="p-3 pt-2 space-y-3 border-t border-white/10 bg-transparent rounded-b-md">
+                <div>
+                  <Label className="text-xs font-medium text-white/90 mb-1 block">Categorías OSM a Incluir</Label>
+                  <ScrollArea className="h-32 border border-white/10 p-2 rounded-md bg-black/10"> 
+                    <div className="space-y-1.5">
+                      {osmCategoriesForSelection.map(category => (
+                        <div key={category.id} className="flex items-center space-x-2 p-1.5 rounded-md hover:bg-white/5">
+                          <Checkbox
+                            id={`osm-cat-${category.id}`}
+                            checked={selectedOSMCategoryIds.includes(category.id)}
+                            onCheckedChange={(checked) => handleOSMCategoryChange(category.id, !!checked)}
+                            className="data-[state=checked]:bg-accent data-[state=checked]:border-accent-foreground border-muted-foreground/70"
+                          />
+                          <Label htmlFor={`osm-cat-${category.id}`} className="text-xs font-medium text-white/90 cursor-pointer">
+                            {category.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <Separator className="my-2 bg-white/20" />
+                
+                <Button 
+                  onClick={onFetchOSMDataTrigger} 
+                  className="w-full bg-primary/70 hover:bg-primary/90 text-primary-foreground text-xs h-8"
+                  disabled={isFetchingOSM || !!activeDrawTool}
+                >
+                  {isFetchingOSM ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <MapPin className="mr-2 h-3 w-3" />}
+                  {isFetchingOSM ? 'Obteniendo Datos...' : 'Obtener Datos OSM (del último polígono)'}
+                </Button>
+
+                <Separator className="my-2 bg-white/20" />
+
+                <div>
+                  <Label htmlFor={`${uniqueIdPrefix}-download-format-select-osm`} className="text-xs font-medium text-white/90 mb-1 block">Formato de Descarga Capas OSM</Label>
+                  <Select value={downloadFormat} onValueChange={onDownloadFormatChange}>
+                    <SelectTrigger id={`${uniqueIdPrefix}-download-format-select-osm`} className="w-full text-xs h-8 border-white/30 bg-black/20 text-white/90 focus:ring-primary">
+                      <SelectValue placeholder="Seleccionar formato" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 text-white border-gray-600">
+                      <SelectItem value="geojson" className="text-xs hover:bg-gray-600 focus:bg-gray-600">GeoJSON</SelectItem>
+                      <SelectItem value="kml" className="text-xs hover:bg-gray-600 focus:bg-gray-600">KML</SelectItem>
+                      <SelectItem value="shp" className="text-xs hover:bg-gray-600 focus:bg-gray-600">Shapefile (ZIP)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  onClick={onDownloadOSMLayers} 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 mt-2"
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
+                  {isDownloading ? 'Descargando...' : 'Descargar Capas OSM'}
+                </Button>
               </AccordionContent>
             </AccordionItem>
           )}
@@ -537,8 +585,8 @@ const MapControls: React.FC<MapControlsProps> = ({
             <AccordionItem value="drawing-tools-section" className="border-b-0 bg-white/5 rounded-md">
               <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
                 <SectionHeader 
-                  title="Herramientas de Dibujo y OSM"
-                  description="Dibuje y obtenga datos OSM."
+                  title="Herramientas de Dibujo"
+                  description="Dibuje en el mapa y guarde sus trazos."
                   icon={PenLine} 
                 />
               </AccordionTrigger>
@@ -583,15 +631,6 @@ const MapControls: React.FC<MapControlsProps> = ({
                 )}
                 <Separator className="my-2 bg-white/20" />
                 <Button 
-                  onClick={onFetchOSMDataTrigger} 
-                  className="w-full bg-primary/70 hover:bg-primary/90 text-primary-foreground text-xs h-8"
-                  disabled={isFetchingOSM || !!activeDrawTool}
-                >
-                  {isFetchingOSM ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <MapPin className="mr-2 h-3 w-3" />}
-                  {isFetchingOSM ? 'Obteniendo Datos...' : 'Obtener Datos OSM (del último polígono)'}
-                </Button>
-                <Separator className="my-2 bg-white/20" />
-                <Button 
                   onClick={onClearDrawnFeatures} 
                   variant="outline" 
                   className="w-full text-xs h-8 border-white/30 hover:bg-red-500/20 hover:text-red-300 text-white/90"
@@ -606,45 +645,10 @@ const MapControls: React.FC<MapControlsProps> = ({
                 >
                   <Save className="mr-2 h-3 w-3" /> Guardar Dibujos (KML)
                 </Button>
-                
               </AccordionContent>
             </AccordionItem>
           )}
 
-          {renderConfig.download && (
-            <AccordionItem value="download-osm-section" className="border-b-0 bg-white/5 rounded-md">
-              <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
-                <SectionHeader 
-                  title="Descargar Entidades OSM"
-                  description="Exporte las capas OSM cargadas."
-                  icon={Download} 
-                />
-              </AccordionTrigger>
-              <AccordionContent className="p-3 pt-2 space-y-3 border-t border-white/10 bg-transparent rounded-b-md">
-                <div>
-                  <Label htmlFor={`${uniqueIdPrefix}-download-format-select`} className="text-xs font-medium text-white/90 mb-1 block">Formato de Descarga</Label>
-                  <Select value={downloadFormat} onValueChange={onDownloadFormatChange}>
-                    <SelectTrigger id={`${uniqueIdPrefix}-download-format-select`} className="w-full text-xs h-8 border-white/30 bg-black/20 text-white/90 focus:ring-primary">
-                      <SelectValue placeholder="Seleccionar formato" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-700 text-white border-gray-600">
-                      <SelectItem value="geojson" className="text-xs hover:bg-gray-600 focus:bg-gray-600">GeoJSON</SelectItem>
-                      <SelectItem value="kml" className="text-xs hover:bg-gray-600 focus:bg-gray-600">KML</SelectItem>
-                      <SelectItem value="shp" className="text-xs hover:bg-gray-600 focus:bg-gray-600">Shapefile (ZIP)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button 
-                  onClick={onDownloadOSMLayers} 
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8"
-                  disabled={isDownloading}
-                >
-                  {isDownloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
-                  {isDownloading ? 'Descargando...' : 'Descargar Capas OSM'}
-                </Button>
-              </AccordionContent>
-            </AccordionItem>
-          )}
         </Accordion>
       </div>
     </ScrollArea>
@@ -652,7 +656,3 @@ const MapControls: React.FC<MapControlsProps> = ({
 };
 
 export default MapControls;
-
-    
-
-    

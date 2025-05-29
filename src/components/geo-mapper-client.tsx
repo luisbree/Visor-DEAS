@@ -6,7 +6,7 @@ import type { Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
-import { ChevronDown, ChevronUp, Map as MapIcon, Plus } from 'lucide-react'; // Added MapIcon, Plus
+import { ChevronDown, ChevronUp, Map as MapIconLucide, Plus } from 'lucide-react'; // Renamed MapIcon to MapIconLucide
 import Draw from 'ol/interaction/Draw';
 import { KML, GeoJSON } from 'ol/format';
 import VectorLayer from 'ol/layer/Vector';
@@ -207,7 +207,6 @@ export default function GeoMapperClient() {
       return;
     }
 
-    // Critical check for ref variable validity
     if (typeof drawingSourceRef !== 'object' || drawingSourceRef === null || !('current' in drawingSourceRef)) {
         console.error("CRITICAL: drawingSourceRef is not a valid React ref object. Value:", drawingSourceRef, "Type:", typeof drawingSourceRef);
         toast({ title: "Error Crítico", description: "Referencia de capa de dibujo (source) corrupta.", variant: "destructive"});
@@ -219,22 +218,18 @@ export default function GeoMapperClient() {
         return; 
     }
 
-    // Proceed with initialization only if the drawing layer's .current property is not already set
     if (!drawingLayerRef.current) { 
       try {
-        // Initialize the source for the drawing layer if its .current property is null
         if (!drawingSourceRef.current) {
              drawingSourceRef.current = new VectorSource({ wrapX: false });
         }
         
-        // Ensure drawingSourceRef.current is valid before using it
         if (!drawingSourceRef.current) {
             console.error("CRITICAL: drawingSourceRef.current is null after attempting initialization. Cannot create drawing layer.");
             toast({ title: "Error Crítico", description: "No se pudo inicializar la fuente de la capa de dibujo.", variant: "destructive"});
             return; 
         }
         
-        // Create and add the drawing layer
         drawingLayerRef.current = new VectorLayer({
             source: drawingSourceRef.current, 
             style: new Style({
@@ -251,7 +246,6 @@ export default function GeoMapperClient() {
         mapRef.current.addLayer(drawingLayerRef.current);
         
       } catch (e: any) {
-        // This catch handles errors during new VectorSource(), new VectorLayer(), or map.addLayer()
         console.error("Error during drawing layer/source INSTANTIATION or map ADDITION:", e.message, { 
           drawingSourceRef_current_value_exists: !!drawingSourceRef.current,
           drawingLayerRef_current_value_exists: !!drawingLayerRef.current,
@@ -451,15 +445,11 @@ export default function GeoMapperClient() {
 
     try {
       const extent3857 = geometry.getExtent();
-      console.log("Extent3857 (Source):", extent3857);
-
       if (!extent3857 || extent3857.some(val => !isFinite(val)) || (extent3857[2] - extent3857[0] <= 0 && extent3857[2] !== extent3857[0]) || (extent3857[3] - extent3857[1] <= 0 && extent3857[3] !== extent3857[1])) {
           throw new Error(`Área dibujada tiene una extensión inválida (inválida o puntos/líneas). Extent: ${extent3857.join(', ')}`);
       }
 
       const extent4326_transformed = transformExtent(extent3857, 'EPSG:3857', 'EPSG:4326');
-      console.log("Extent4326 (Transformed, raw):", extent4326_transformed);
-      
       if (!extent4326_transformed || extent4326_transformed.some(val => !isFinite(val))) {
           throw new Error("Fallo al transformar área dibujada a coordenadas geográficas válidas.");
       }
@@ -468,7 +458,6 @@ export default function GeoMapperClient() {
       const w_coord = parseFloat(extent4326_transformed[0].toFixed(6));
       const n_coord = parseFloat(extent4326_transformed[3].toFixed(6));
       const e_coord = parseFloat(extent4326_transformed[2].toFixed(6));
-      console.log("Coordinates for Overpass (s,w,n,e - after toFixed(6)):", s_coord, w_coord, n_coord, e_coord);
 
       if (n_coord < s_coord) { 
           throw new Error(`Error de Bounding Box (N < S): Norte ${n_coord} es menor que Sur ${s_coord}. BBox original: ${extent4326_transformed.join(', ')}`);
@@ -478,7 +467,6 @@ export default function GeoMapperClient() {
       }
             
       const bboxStr = `${s_coord},${w_coord},${n_coord},${e_coord}`;
-      console.log("Constructed bboxStr for Overpass API:", bboxStr);
       
       let queryParts: string[] = [];
       const categoriesToFetch = osmCategoryConfig.filter(cat => selectedOSMCategoryIdsRef.current.includes(cat.id));
@@ -494,7 +482,6 @@ export default function GeoMapperClient() {
         );
         out geom;
       `;
-      console.log("Overpass Query:", overpassQuery);
       
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
@@ -738,9 +725,8 @@ export default function GeoMapperClient() {
   };
   const toolsPanelRenderConfig = { 
     inspector: true, 
-    osmCategories: true, 
-    drawing: true, 
-    download: true 
+    osmCapabilities: true, // Use the new flag
+    drawing: true 
   };
 
   return (
@@ -871,7 +857,3 @@ export default function GeoMapperClient() {
     </div>
   );
 }
-
-      
-
-    
