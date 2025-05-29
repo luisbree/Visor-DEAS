@@ -11,7 +11,7 @@ import { fromLonLat } from 'ol/proj';
 
 interface MapViewProps {
   mapRef: React.MutableRefObject<OLMap | null>;
-  setMapInstance: (map: OLMap) => void;
+  setMapInstanceAndElement: (map: OLMap, element: HTMLDivElement) => void; // Modified prop
 }
 
 export const BASE_LAYER_DEFINITIONS = [
@@ -30,7 +30,7 @@ export const BASE_LAYER_DEFINITIONS = [
       source: new XYZ({ 
         url: 'https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
         attributions: 'Map tiles by <a href="https://carto.com/attributions">Carto</a>, under CC BY 3.0. Data by <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, under ODbL.',
-        maxZoom: 20, // Carto maps generally support up to zoom 20 or more
+        maxZoom: 20,
       }),
       visible: false, 
       properties: { baseLayerId: 'carto-light', isBaseLayer: true, name: 'CartoGrayscaleBaseLayer' },
@@ -52,7 +52,7 @@ export const BASE_LAYER_DEFINITIONS = [
 ] as const;
 
 
-const MapView: React.FC<MapViewProps> = ({ mapRef, setMapInstance }) => {
+const MapView: React.FC<MapViewProps> = ({ mapRef, setMapInstanceAndElement }) => {
   const mapElementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,22 +81,17 @@ const MapView: React.FC<MapViewProps> = ({ mapRef, setMapInstance }) => {
     });
 
     mapRef.current = map; 
-    setMapInstance(map); 
+    setMapInstanceAndElement(map, mapElementRef.current); // Pass the map instance and its div element
 
-    // No direct layer manipulation here, GeoMapperClient handles synchronization
-    
     return () => {
       if (mapRef.current) {
         mapRef.current.setTarget(undefined); 
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mapRef and setMapInstance are stable from useCallback
+  }, []); 
 
   return <div ref={mapElementRef} className="w-full h-full bg-gray-200" />;
 };
 
 export default MapView;
-
-
-    

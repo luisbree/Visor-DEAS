@@ -27,10 +27,8 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
-    // Permitir arrastre solo si el target directo es el header o el grip, 
-    // y no un botón dentro del header.
     const targetElement = e.target as HTMLElement;
-    if (targetElement.closest('button')) { // No arrastrar si se hace clic en un botón dentro del header
+    if (targetElement.closest('button')) { 
         return;
     }
     
@@ -52,9 +50,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       const dy = e.clientY - dragStartRef.current.y;
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
-      
-      // El panel se puede mover libremente. Las restricciones al mapAreaRef fueron eliminadas.
-      // Si se deseara restringir al viewport, aquí se añadiría esa lógica.
       
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
@@ -116,11 +111,11 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       }}
     >
       <CardHeader 
-        className="flex flex-row items-center justify-between p-3 bg-gray-700/80 cursor-grab rounded-t-lg" // Eliminada la clase 'no-drag'
+        className="flex flex-row items-center justify-between p-3 bg-gray-700/80 cursor-grab rounded-t-lg"
         onMouseDown={handleMouseDownOnHeader}
       >
         <div className="flex items-center">
-            <GripVertical className="h-5 w-5 mr-2 text-gray-400 pointer-events-none" /> {/* pointer-events-none para que el mousedown pase al CardHeader */}
+            <GripVertical className="h-5 w-5 mr-2 text-gray-400 pointer-events-none" />
             <CardTitle className="text-base font-semibold text-white">Atributos de Entidad(es)</CardTitle>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-white hover:bg-gray-600/80">
@@ -146,7 +141,10 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
                 {featuresAttributes.map((attrs, idx) => (
                   <TableRow key={idx} className="hover:bg-gray-700/30">
                     {allKeys.map(key => (
-                      <TableCell key={key} className="px-3 py-1.5 text-xs text-gray-200 border-b border-gray-700/50 whitespace-normal break-words">
+                      <TableCell 
+                        key={key} 
+                        className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
+                      >
                         {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
                       </TableCell>
                     ))}
@@ -165,4 +163,3 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
-    
