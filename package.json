@@ -56,7 +56,8 @@
     "zod": "^3.24.2",
     "jszip": "^3.10.1",
     "shpjs": "^4.0.4",
-    "shp-write": "^0.3.2"
+    "shp-write": "^0.3.2",
+    "ol": "^9.2.4"
   },
   "devDependencies": {
     "@types/node": "^20",
