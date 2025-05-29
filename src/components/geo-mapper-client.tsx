@@ -380,34 +380,41 @@ export default function GeoMapperClient() {
 
   useEffect(() => {
     const currentMap = mapRef.current;
-    const mapDiv = mapElementRef.current; // Use the map's div element ref
+    const mapDiv = mapElementRef.current;
 
-    // Cleanup function
     const cleanupInspectionInteractions = () => {
-        if (mapDiv) mapDiv.classList.remove('cursor-crosshair'); // Remove cursor style
+        if (mapDiv) mapDiv.classList.remove('cursor-crosshair');
         if (!currentMap) return;
+        
         currentMap.un('singleclick', handleMapClick);
+        
         if (dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
             const interactionsArray = currentMap.getInteractions().getArray();
             if (interactionsArray.includes(dragBoxInteractionRef.current)) {
                 currentMap.removeInteraction(dragBoxInteractionRef.current);
             }
-            dragBoxInteractionRef.current.dispose();
+            dragBoxInteractionRef.current.dispose(); // Crucial for full cleanup
             dragBoxInteractionRef.current = null;
         }
+        
         if (defaultDragZoomInteractionRef.current) {
-            defaultDragZoomInteractionRef.current.setActive(wasDragZoomActiveRef.current);
+            currentMap.getInteractions().forEach(interaction => {
+                if (interaction === defaultDragZoomInteractionRef.current) {
+                    interaction.setActive(wasDragZoomActiveRef.current);
+                }
+            });
             defaultDragZoomInteractionRef.current = null; 
         }
     };
 
     if (isInspectModeActive && !activeDrawTool) {
-        if (mapDiv) mapDiv.classList.add('cursor-crosshair'); // Add cursor style
+        if (mapDiv) mapDiv.classList.add('cursor-crosshair');
         if (!currentMap) return cleanupInspectionInteractions;
 
         currentMap.on('singleclick', handleMapClick);
 
+        // Deactivate default DragZoom if present
         currentMap.getInteractions().forEach(interaction => {
             if (interaction instanceof DragZoom) {
                 defaultDragZoomInteractionRef.current = interaction;
@@ -415,14 +422,17 @@ export default function GeoMapperClient() {
                 interaction.setActive(false); 
             }
         });
-
+        
+        // Add custom DragBox for attribute selection
         if (!dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current = new DragBox({
                 condition: platformModifierKeyOnly, 
             });
+            currentMap.addInteraction(dragBoxInteractionRef.current);
         }
+        // Ensure boxend listener is attached, only once
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); // Remove previous if any
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
-        currentMap.addInteraction(dragBoxInteractionRef.current);
 
     } else {
         cleanupInspectionInteractions();
