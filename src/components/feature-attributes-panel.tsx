@@ -12,14 +12,14 @@ interface FeatureAttributesPanelProps {
   featuresAttributes: Record<string, any>[] | null;
   isVisible: boolean;
   onClose: () => void;
-  mapAreaRef: React.RefObject<HTMLDivElement>; // Kept for now, but drag restriction removed
+  // mapAreaRef prop is no longer needed for drag restriction
 }
 
 const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   featuresAttributes,
   isVisible,
   onClose,
-  mapAreaRef, // Kept as prop, but not used for drag constraining
+  // mapAreaRef, // Removed as prop
 }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [size, setSize] = useState({ width: 400, height: 300 });
@@ -43,16 +43,14 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !panelRef.current) return; // Removed mapAreaRef.current check for restriction
+      if (!isDragging || !panelRef.current) return;
 
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
       
-      // Dragging is no longer restricted to mapAreaRef boundaries
-      // newX = Math.max(0, Math.min(newX, mapRect.width - panelRect.width)); // Removed
-      // newY = Math.max(0, Math.min(newY, mapRect.height - panelRect.height)); // Removed
+      // Dragging is no longer restricted to any boundaries
       
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
@@ -75,7 +73,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging]); // Removed mapAreaRef from dependencies
+  }, [isDragging]);
 
 
   if (!isVisible || !featuresAttributes || featuresAttributes.length === 0) {

@@ -383,7 +383,7 @@ export default function GeoMapperClient() {
 
       if (!dragBoxInteractionRef.current) {
         dragBoxInteractionRef.current = new DragBox({
-          // condition: platformModifierKeyOnly, // Default: Shift + Drag
+          condition: platformModifierKeyOnly, // Default: Shift + Drag
         });
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
       }
@@ -395,7 +395,7 @@ export default function GeoMapperClient() {
         dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
         currentMap.removeInteraction(dragBoxInteractionRef.current);
         // dragBoxInteractionRef.current.dispose(); // Dispose if not reusing
-        // dragBoxInteractionRef.current = null;
+        // dragBoxInteractionRef.current = null; // Don't nullify if we might re-add it.
       }
       if (!isInspectModeActive) {
         setSelectedFeatureAttributes(null);
@@ -840,7 +840,6 @@ export default function GeoMapperClient() {
             setIsFeatureAttributesPanelVisible(false);
             setSelectedFeatureAttributes(null);
           }}
-          mapAreaRef={mapAreaRef}
         />
 
         {/* Layers Panel (Left) */}
