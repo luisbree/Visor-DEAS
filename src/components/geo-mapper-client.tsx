@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import type { Map as OLMap, Feature as OLFeature } from 'ol';
+// Changed import: OLMap is type-only, OLFeature is value (and type)
+import { type Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
@@ -895,5 +896,7 @@ export default function GeoMapperClient() {
     </div>
   );
 }
+
+    
 
     
