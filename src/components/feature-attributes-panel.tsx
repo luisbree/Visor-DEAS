@@ -12,14 +12,14 @@ interface FeatureAttributesPanelProps {
   featuresAttributes: Record<string, any>[] | null;
   isVisible: boolean;
   onClose: () => void;
-  mapAreaRef: React.RefObject<HTMLDivElement>; // To constrain dragging
+  mapAreaRef: React.RefObject<HTMLDivElement>; // Kept for now, but drag restriction removed
 }
 
 const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   featuresAttributes,
   isVisible,
   onClose,
-  mapAreaRef,
+  mapAreaRef, // Kept as prop, but not used for drag constraining
 }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [size, setSize] = useState({ width: 400, height: 300 });
@@ -29,7 +29,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
-    // Prevent drag from starting on scrollbar or resize handle if they exist in header
     if ((e.target as HTMLElement).closest('.no-drag')) return;
 
     setIsDragging(true);
@@ -39,24 +38,21 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       panelX: position.x,
       panelY: position.y,
     };
-    e.preventDefault(); // Prevent text selection
+    e.preventDefault(); 
   }, [position]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !panelRef.current || !mapAreaRef.current) return;
+      if (!isDragging || !panelRef.current) return; // Removed mapAreaRef.current check for restriction
 
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
-
-      const mapRect = mapAreaRef.current.getBoundingClientRect();
-      const panelRect = panelRef.current.getBoundingClientRect();
       
-      // Constrain dragging within mapAreaRef boundaries
-      newX = Math.max(0, Math.min(newX, mapRect.width - panelRect.width));
-      newY = Math.max(0, Math.min(newY, mapRect.height - panelRect.height));
+      // Dragging is no longer restricted to mapAreaRef boundaries
+      // newX = Math.max(0, Math.min(newX, mapRect.width - panelRect.width)); // Removed
+      // newY = Math.max(0, Math.min(newY, mapRect.height - panelRect.height)); // Removed
       
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
@@ -79,7 +75,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, mapAreaRef]);
+  }, [isDragging]); // Removed mapAreaRef from dependencies
 
 
   if (!isVisible || !featuresAttributes || featuresAttributes.length === 0) {
@@ -103,11 +99,11 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
         minHeight: '200px',
         maxWidth: '80vw',
         maxHeight: '70vh',
-        zIndex: 40, // Ensure it's above map controls but can be configured
+        zIndex: 40, 
         resize: 'both',
-        overflow: 'hidden', // Important for resize handle to work correctly
+        overflow: 'hidden', 
       }}
-      onMouseUpCapture={() => {  // Update size state when CSS resize finishes
+      onMouseUpCapture={() => { 
         if (panelRef.current) {
             const newWidth = panelRef.current.offsetWidth;
             const newHeight = panelRef.current.offsetHeight;
@@ -130,9 +126,9 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
           <span className="sr-only">Cerrar</span>
         </Button>
       </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-hidden"> {/* Ensure content can grow and scroll */}
-        <ScrollArea className="h-full w-full"> {/* ScrollArea should take full height of CardContent */}
-          <div className="p-3"> {/* Padding inside ScrollArea */}
+      <CardContent className="p-0 flex-grow overflow-hidden"> 
+        <ScrollArea className="h-full w-full"> 
+          <div className="p-3"> 
           {allKeys.length > 0 ? (
             <Table className="min-w-full">
               <TableHeader>
@@ -167,6 +163,5 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
-
 
     

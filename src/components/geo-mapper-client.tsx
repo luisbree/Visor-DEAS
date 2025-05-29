@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-// Changed import: OLMap is type-only, OLFeature is value (and type)
 import { type Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
 import { ChevronDown, ChevronUp, MapPin } from 'lucide-react';
 import Draw from 'ol/interaction/Draw';
+import DragBox from 'ol/interaction/DragBox';
+import { platformModifierKeyOnly } from 'ol/events/condition';
 import { KML, GeoJSON } from 'ol/format';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -151,6 +152,7 @@ export default function GeoMapperClient() {
   const drawingSourceRef = useRef<VectorSourceType<OLFeature<any>> | null>(null);
   const drawingLayerRef = useRef<VectorLayerType<VectorSourceType<OLFeature<any>>> | null>(null);
   const drawInteractionRef = useRef<Draw | null>(null);
+  const dragBoxInteractionRef = useRef<DragBox | null>(null);
 
   const [activeDrawTool, setActiveDrawTool] = useState<string | null>(null);
   const [isFetchingOSM, setIsFetchingOSM] = useState(false);
@@ -288,68 +290,133 @@ export default function GeoMapperClient() {
 
   }, [layers]); 
 
+  const processAndDisplayFeatures = useCallback((foundFeatures: OLFeature<any>[]) => {
+    if (foundFeatures.length > 0) {
+        const allAttributes = foundFeatures
+          .map(feature => {
+            if (!(feature instanceof OLFeature)) return null;
+            const properties = feature.getProperties();
+            const attributesToShow: Record<string, any> = {};
+            for (const key in properties) {
+              if (key !== 'geometry' && key !== feature.getGeometryName()) {
+                attributesToShow[key] = properties[key];
+              }
+            }
+            return attributesToShow;
+          })
+          .filter(attrs => attrs && Object.keys(attrs).length > 0) as Record<string, any>[];
+
+        if (allAttributes.length > 0) {
+          setSelectedFeatureAttributes(allAttributes);
+          setIsFeatureAttributesPanelVisible(true);
+          toast({
+            title: `Entidad(es) Seleccionada(s): ${allAttributes.length}`,
+            description: "Panel de atributos abierto. Utilice Shift + Arrastrar para selección por área."
+          });
+        } else {
+          setSelectedFeatureAttributes(null);
+          setIsFeatureAttributesPanelVisible(false);
+          toast({ title: "Sin Atributos Visibles", description: "La(s) entidad(es) seleccionada(s) no tienen atributos visibles." });
+        }
+      } else {
+        setSelectedFeatureAttributes(null);
+        setIsFeatureAttributesPanelVisible(false);
+      }
+  }, [toast]);
+
 
   const handleMapClick = useCallback((event: any) => {
     if (!isInspectModeActive || !mapRef.current || activeDrawTool) return;
 
     const clickedPixel = mapRef.current.getEventPixel(event.originalEvent);
-    const featuresAtPixel = mapRef.current.getFeaturesAtPixel(clickedPixel);
-
-    if (featuresAtPixel && featuresAtPixel.length > 0) {
-      const allAttributes = featuresAtPixel
-        .map(feature => {
-          // Ensure feature is an OLFeature instance, not other OL objects like RenderFeature
-          if (!(feature instanceof OLFeature)) return null; 
-          const properties = feature.getProperties();
-          const attributesToShow: Record<string, any> = {};
-          for (const key in properties) {
-            if (key !== 'geometry' && key !== feature.getGeometryName()) {
-              attributesToShow[key] = properties[key];
-            }
-          }
-          return attributesToShow;
-        })
-        .filter(attrs => attrs && Object.keys(attrs).length > 0) as Record<string, any>[];
-
-      if (allAttributes.length > 0) {
-        setSelectedFeatureAttributes(allAttributes);
-        setIsFeatureAttributesPanelVisible(true);
-        toast({ 
-            title: `Entidad(es) Seleccionada(s): ${allAttributes.length}`, 
-            description: "Panel de atributos abierto." 
-        });
-      } else {
-        setSelectedFeatureAttributes(null);
-        setIsFeatureAttributesPanelVisible(false);
-        toast({ title: "Sin Atributos Visibles", description: "La(s) entidad(es) seleccionada(s) no tienen atributos visibles." });
-      }
-    } else {
-      setSelectedFeatureAttributes(null);
-      setIsFeatureAttributesPanelVisible(false);
+    // Check if the click was part of a drag operation (for DragBox)
+    if (dragBoxInteractionRef.current && dragBoxInteractionRef.current.getActive() && (event.originalEvent.type === 'pointermove' || event.originalEvent.type === 'mousemove')) {
+        return; // Let DragBox handle it
     }
-  }, [isInspectModeActive, activeDrawTool, toast]);
+
+    const featuresAtPixel: OLFeature<any>[] = [];
+    mapRef.current.forEachFeatureAtPixel(clickedPixel, (feature) => {
+        if (feature instanceof OLFeature) {
+            featuresAtPixel.push(feature);
+        }
+        return false; // Continue to check all features at pixel
+    }, { hitTolerance: 5 }); // Add some hit tolerance
+
+    processAndDisplayFeatures(featuresAtPixel);
+
+  }, [isInspectModeActive, activeDrawTool, processAndDisplayFeatures]);
+
+  const handleDragBoxEnd = useCallback((event: any) => {
+    if (!mapRef.current || !isInspectModeActive) return;
+    const extent = event.target.getGeometry().getExtent();
+    const foundFeatures: OLFeature<any>[] = [];
+
+    // Check loaded vector layers
+    layers.forEach(layer => {
+      if (layer.visible && layer.olLayer) {
+        const source = layer.olLayer.getSource();
+        if (source) {
+          source.forEachFeatureIntersectingExtent(extent, (feature) => {
+             if (feature instanceof OLFeature) foundFeatures.push(feature);
+          });
+        }
+      }
+    });
+
+    // Check drawing layer
+    if (drawingLayerRef.current && drawingSourceRef.current) {
+      drawingSourceRef.current.forEachFeatureIntersectingExtent(extent, (feature) => {
+        if (feature instanceof OLFeature) foundFeatures.push(feature);
+      });
+    }
+    
+    processAndDisplayFeatures(foundFeatures);
+  }, [layers, processAndDisplayFeatures, isInspectModeActive]);
 
 
   useEffect(() => {
-    if (mapRef.current) {
-      const mapInstance = mapRef.current;
-      if (isInspectModeActive && !activeDrawTool) {
-        mapInstance.on('singleclick', handleMapClick);
-      } else {
-        mapInstance.un('singleclick', handleMapClick);
-        if (!isInspectModeActive) {
-          setSelectedFeatureAttributes(null);
-          setIsFeatureAttributesPanelVisible(false);
-        }
+    const currentMap = mapRef.current;
+    if (!currentMap) return;
+
+    if (isInspectModeActive && !activeDrawTool) {
+      currentMap.on('singleclick', handleMapClick);
+
+      if (!dragBoxInteractionRef.current) {
+        dragBoxInteractionRef.current = new DragBox({
+          // condition: platformModifierKeyOnly, // Default: Shift + Drag
+        });
+        dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
+      }
+      currentMap.addInteraction(dragBoxInteractionRef.current);
+
+    } else {
+      currentMap.un('singleclick', handleMapClick);
+      if (dragBoxInteractionRef.current) {
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
+        currentMap.removeInteraction(dragBoxInteractionRef.current);
+        // dragBoxInteractionRef.current.dispose(); // Dispose if not reusing
+        // dragBoxInteractionRef.current = null;
+      }
+      if (!isInspectModeActive) {
+        setSelectedFeatureAttributes(null);
+        setIsFeatureAttributesPanelVisible(false);
       }
     }
-    // Cleanup function
+
     return () => {
-      if (mapRef.current) {
-        mapRef.current.un('singleclick', handleMapClick);
+      if (currentMap) {
+        currentMap.un('singleclick', handleMapClick);
+        if (dragBoxInteractionRef.current) {
+          dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
+          // Check if interaction is still on map before removing
+          const interactions = currentMap.getInteractions().getArray();
+          if (interactions.includes(dragBoxInteractionRef.current)) {
+            currentMap.removeInteraction(dragBoxInteractionRef.current);
+          }
+        }
       }
     };
-  }, [isInspectModeActive, activeDrawTool, handleMapClick]);
+  }, [isInspectModeActive, activeDrawTool, handleMapClick, handleDragBoxEnd]);
 
 
   const zoomToLayerExtent = useCallback((layerId: string) => {
@@ -896,7 +963,5 @@ export default function GeoMapperClient() {
     </div>
   );
 }
-
-    
 
     
