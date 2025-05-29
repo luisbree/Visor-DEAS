@@ -113,4 +113,12 @@
   .cursor-crosshair {
     cursor: crosshair;
   }
+
+  /* Estilo para el rectángulo de selección de OpenLayers DragBox */
+  .ol-dragbox {
+    background-color: hsla(var(--accent) / 0.2); /* Usar color de acento con opacidad */
+    border: 2px solid hsl(var(--accent)); /* Borde con color de acento */
+    /* Asegurarse de que esté por encima de las capas del mapa pero debajo de otros UI si es necesario */
+    z-index: 100; /* Ajustar según sea necesario */
+  }
 }
