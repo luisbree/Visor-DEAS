@@ -129,7 +129,7 @@ function triggerDownloadArrayBuffer(content: ArrayBuffer, fileName: string, cont
 export default function GeoMapperClient() {
   const [layers, setLayers] = useState<MapLayer[]>([]);
   const mapRef = useRef<OLMap | null>(null);
-  const mapElementRef = useRef<HTMLDivElement | null>(null); // Ref for the map's div element
+  const mapElementRef = useRef<HTMLDivElement | null>(null); 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   
   const toolsPanelRef = useRef<HTMLDivElement>(null);
@@ -213,7 +213,7 @@ export default function GeoMapperClient() {
 
   const setMapInstanceAndElement = useCallback((mapInstance: OLMap, element: HTMLDivElement) => {
     mapRef.current = mapInstance;
-    mapElementRef.current = element; // Store the map's div element
+    mapElementRef.current = element; 
 
     if (!mapRef.current) {
       console.error("setMapInstanceAndElement called but mapRef.current is null.");
@@ -309,9 +309,9 @@ export default function GeoMapperClient() {
                 attributesToShow[key] = properties[key];
               }
             }
-            return attributesToShow;
+            return Object.keys(attributesToShow).length > 0 ? attributesToShow : null;
           })
-          .filter(attrs => attrs && Object.keys(attrs).length > 0) as Record<string, any>[];
+          .filter(attrs => attrs !== null) as Record<string, any>[];
 
         if (allAttributes.length > 0) {
           setSelectedFeatureAttributes(allAttributes);
@@ -328,6 +328,8 @@ export default function GeoMapperClient() {
       } else {
         setSelectedFeatureAttributes(null);
         setIsFeatureAttributesPanelVisible(false);
+        // Consider not showing a toast if no features are found by dragbox, to avoid noise.
+        // For single click, it might still be useful.
       }
   }, [toast]);
 
@@ -394,16 +396,18 @@ export default function GeoMapperClient() {
             if (interactionsArray.includes(dragBoxInteractionRef.current)) {
                 currentMap.removeInteraction(dragBoxInteractionRef.current);
             }
-            dragBoxInteractionRef.current.dispose(); // Crucial for full cleanup
+            dragBoxInteractionRef.current.dispose(); 
             dragBoxInteractionRef.current = null;
         }
         
         if (defaultDragZoomInteractionRef.current) {
-            currentMap.getInteractions().forEach(interaction => {
-                if (interaction === defaultDragZoomInteractionRef.current) {
-                    interaction.setActive(wasDragZoomActiveRef.current);
-                }
-            });
+            // Restore default DragZoom to its previous state if it was managed
+             const dragZoomInteraction = currentMap.getInteractions().getArray().find(
+                (interaction) => interaction === defaultDragZoomInteractionRef.current
+             );
+             if (dragZoomInteraction) {
+                dragZoomInteraction.setActive(wasDragZoomActiveRef.current);
+             }
             defaultDragZoomInteractionRef.current = null; 
         }
     };
@@ -414,24 +418,26 @@ export default function GeoMapperClient() {
 
         currentMap.on('singleclick', handleMapClick);
 
-        // Deactivate default DragZoom if present
-        currentMap.getInteractions().forEach(interaction => {
-            if (interaction instanceof DragZoom) {
-                defaultDragZoomInteractionRef.current = interaction;
-                wasDragZoomActiveRef.current = interaction.getActive();
-                interaction.setActive(false); 
-            }
-        });
+        // Deactivate default DragZoom if present and not already managed
+        if (!defaultDragZoomInteractionRef.current) {
+            currentMap.getInteractions().forEach(interaction => {
+                if (interaction instanceof DragZoom) {
+                    defaultDragZoomInteractionRef.current = interaction;
+                    wasDragZoomActiveRef.current = interaction.getActive();
+                    interaction.setActive(false); 
+                }
+            });
+        }
         
-        // Add custom DragBox for attribute selection
         if (!dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current = new DragBox({
                 condition: platformModifierKeyOnly, 
+                // className: 'my-custom-dragbox-class' // If you want to use a custom class
             });
             currentMap.addInteraction(dragBoxInteractionRef.current);
         }
-        // Ensure boxend listener is attached, only once
-        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); // Remove previous if any
+        
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); 
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
 
     } else {

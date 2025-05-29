@@ -7,6 +7,10 @@ export default {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    'ol-dragbox', // Asegura que los estilos para el dragbox de OpenLayers no sean purgados
+    'cursor-crosshair', // Ya debería estar cubierto por @layer utilities, pero por si acaso.
+  ],
   theme: {
   	extend: {
   		colors: {
