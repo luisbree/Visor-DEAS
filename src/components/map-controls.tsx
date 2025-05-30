@@ -15,11 +15,13 @@ import type VectorLayerType from 'ol/layer/Vector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+// Checkbox ya no se usa directamente para capas, pero podría usarse en OSM Categories, así que lo mantenemos.
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
-  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2
+  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2,
+  Eye, EyeOff // Importar iconos de ojo
 } from 'lucide-react';
 import {
   Accordion,
@@ -140,15 +142,17 @@ const MapControls: React.FC<MapControlsProps> = ({
   const prevLayersLengthRef = React.useRef(layers.length);
 
   React.useEffect(() => {
-    const initialOpenItems: string[] = [];
     if (renderConfig.layers && layers.length > 0 && prevLayersLengthRef.current === 0) {
-      initialOpenItems.push('layers-section');
+      if (!openAccordionItems.includes('layers-section')) {
+        setOpenAccordionItems(prevItems => {
+          const newItems = new Set(prevItems);
+          newItems.add('layers-section');
+          return Array.from(newItems);
+        });
+      }
     }
-    setOpenAccordionItems(initialOpenItems);
-
     prevLayersLengthRef.current = layers.length;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.length, renderConfig.layers, renderConfig.osmCapabilities, renderConfig.drawing]);
+  }, [layers.length, renderConfig.layers, openAccordionItems, setOpenAccordionItems]);
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -418,16 +422,19 @@ const MapControls: React.FC<MapControlsProps> = ({
                     <ul className="space-y-1.5">
                       {layers.map((layer) => (
                         <li key={layer.id} className="flex items-center justify-between p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/15 transition-colors">
-                           <Checkbox
-                              id={`layer-toggle-${layer.id}`}
-                              checked={layer.visible}
-                              onCheckedChange={() => onToggleLayerVisibility(layer.id)}
-                              className="data-[state=checked]:bg-accent data-[state=checked]:border-accent-foreground border-muted-foreground/70 mr-2 h-3.5 w-3.5"
+                           <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onToggleLayerVisibility(layer.id)}
+                              className="h-6 w-6 text-white hover:bg-gray-600/80 p-0 mr-2"
                               aria-label={`Alternar visibilidad para ${layer.name}`}
-                            />
-                          <Label htmlFor={`layer-toggle-${layer.id}`} className="flex-1 cursor-pointer truncate pr-1 text-xs font-medium text-white" title={layer.name}>
+                              title={layer.visible ? "Ocultar capa" : "Mostrar capa"}
+                            >
+                              {layer.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            </Button>
+                          <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white" title={layer.name}>
                             {layer.name}
-                          </Label>
+                          </span>
                           <div className="flex items-center space-x-0.5">
                             <Button
                               variant="ghost"
@@ -617,3 +624,5 @@ const MapControls: React.FC<MapControlsProps> = ({
 };
 
 export default MapControls;
+
+    
