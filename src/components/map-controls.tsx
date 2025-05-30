@@ -333,11 +333,6 @@ const MapControls: React.FC<MapControlsProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFile, selectedMultipleFiles]);
 
-
-  const getButtonVariant = (toolName: string) => {
-    return activeDrawTool === toolName ? "secondary" : "outline";
-  };
-
   const handleOSMCategoryChange = (categoryId: string, checked: boolean) => {
     const newSelectedIds = checked
       ? [...selectedOSMCategoryIds, categoryId]
@@ -479,8 +474,6 @@ const MapControls: React.FC<MapControlsProps> = ({
               </AccordionContent>
             </AccordionItem>
           )}
-
-          {/* Inspector section removed from here */}
           
           {renderConfig.drawing && (
             <AccordionItem value="drawing-tools-section" className="border-b-0 bg-white/5 rounded-md">
@@ -495,27 +488,33 @@ const MapControls: React.FC<MapControlsProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   <Button 
                     onClick={() => onToggleDrawingTool('Polygon')} 
-                    variant={getButtonVariant('Polygon')} 
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'Polygon' ? 'active' : 'inactive'}
+                    className={`text-xs h-8 focus-visible:ring-primary ${
+                      activeDrawTool === 'Polygon'
+                        ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                        : 'border border-white/30 text-white/90 bg-black/20 hover:bg-black/40'
+                    }`}
                     title="Dibujar Polígono (para obtener datos OSM)"
                   >
                     <Square className="mr-1 h-3 w-3" /> Polígono
                   </Button>
                   <Button 
                     onClick={() => onToggleDrawingTool('LineString')} 
-                    variant={getButtonVariant('LineString')}
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'LineString' ? 'active' : 'inactive'}
+                    className={`text-xs h-8 focus-visible:ring-primary ${
+                      activeDrawTool === 'LineString'
+                        ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                        : 'border border-white/30 text-white/90 bg-black/20 hover:bg-black/40'
+                    }`}
                     title="Dibujar Línea"
                   >
                     <PenLine className="mr-1 h-3 w-3" /> Línea
                   </Button>
                   <Button 
                     onClick={() => onToggleDrawingTool('Point')} 
-                    variant={getButtonVariant('Point')}
-                    className="text-xs h-8 border-white/30 hover:bg-white/10 text-white/90 data-[state=active]:bg-accent/30 data-[state=active]:text-white"
-                    data-state={activeDrawTool === 'Point' ? 'active' : 'inactive'}
+                    className={`text-xs h-8 focus-visible:ring-primary ${
+                      activeDrawTool === 'Point'
+                        ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                        : 'border border-white/30 text-white/90 bg-black/20 hover:bg-black/40'
+                    }`}
                     title="Dibujar Punto"
                   >
                     <Dot className="mr-1 h-3 w-3" /> Punto
