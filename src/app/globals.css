@@ -14,7 +14,7 @@
     --popover: 0 0% 100%; /* White */
     --popover-foreground: 0 0% 20%;
 
-    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary: 200 45% 35%; /* Petroleum Blue */
     --primary-foreground: 210 40% 98%; /* White / Very Light Gray for contrast */
 
     --secondary: 0 0% 90%; /* Neutral light gray */
@@ -31,7 +31,7 @@
 
     --border: 0 0% 85%;
     --input: 0 0% 85%;
-    --ring: 217 91% 60%; /* Vibrant Blue for focus rings */
+    --ring: 200 45% 35%; /* Petroleum Blue for focus rings */
 
     --radius: 0.5rem;
 
@@ -64,7 +64,7 @@
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary: 200 45% 45%; /* Petroleum Blue - slightly lighter for dark mode */
     --primary-foreground: 210 40% 98%; /* White / Very Light Gray */
 
     --secondary: 0 0% 14.9%;
@@ -81,7 +81,7 @@
 
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 217 91% 60%; /* Vibrant Blue for focus rings */
+    --ring: 200 45% 45%; /* Petroleum Blue for focus rings - slightly lighter for dark mode */
     
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
