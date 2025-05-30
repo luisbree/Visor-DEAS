@@ -22,7 +22,6 @@ import shpwrite from 'shp-write';
 import MapView, { BASE_LAYER_DEFINITIONS } from '@/components/map-view';
 import MapControls from '@/components/map-controls';
 import FeatureAttributesPanel from '@/components/feature-attributes-panel';
-// import { Toaster } from "@/components/ui/toaster"; // No longer used
 import { toast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 
@@ -90,6 +89,41 @@ const osmCategoryConfig: OSMCategoryConfig[] = [
     overpassQueryFragment: (bboxStr) => `nwr[amenity~"^(school|university|college|kindergarten)$"](${bboxStr});`,
     matcher: (tags) => tags && ['school', 'university', 'college', 'kindergarten'].includes(tags.amenity),
     style: new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({color: '#8338ec'}), stroke: new Stroke({color: 'white', width: 1.5})})})
+  },
+  {
+    id: 'social_institutions',
+    name: 'OSM Instituciones Sociales',
+    overpassQueryFragment: (bboxStr) => `
+      nwr[amenity~"^(community_centre|social_facility|place_of_worship)$"](${bboxStr});
+      nwr[office="ngo"](${bboxStr});
+      nwr[leisure="club"](${bboxStr});
+    `,
+    matcher: (tags) => tags && (
+      tags.amenity === 'community_centre' || 
+      tags.amenity === 'social_facility' ||
+      tags.amenity === 'place_of_worship' ||
+      tags.office === 'ngo' ||
+      tags.leisure === 'club'
+    ),
+    style: new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({color: '#ff6b6b'}), stroke: new Stroke({color: 'white', width: 1.5})})})
+  },
+  {
+    id: 'cultural_heritage',
+    name: 'OSM Patrimonio Cultural',
+    overpassQueryFragment: (bboxStr) => `
+      nwr[historic](${bboxStr});
+      nwr[tourism="museum"](${bboxStr});
+      nwr[tourism="artwork"](${bboxStr});
+      nwr[amenity="place_of_worship"][historic](${bboxStr});
+      nwr[amenity="place_of_worship"][heritage](${bboxStr});
+    `,
+    matcher: (tags) => tags && (
+      tags.historic || 
+      tags.tourism === 'museum' ||
+      tags.tourism === 'artwork' ||
+      (tags.amenity === 'place_of_worship' && (tags.historic || tags.heritage))
+    ),
+    style: new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({color: '#8d6e63'}), stroke: new Stroke({color: 'white', width: 1.5})})})
   },
 ];
 
@@ -1045,7 +1079,7 @@ export default function GeoMapperClient() {
         </div>
 
       </div>
-      {/* Toaster component is no longer used here, SimpleNotification is in layout.tsx */}
     </div>
   );
 }
+
