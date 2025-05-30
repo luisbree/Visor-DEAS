@@ -10,18 +10,19 @@ import type { GeoJSON as GeoJSONFormatType } from 'ol/format';
 import type KMLFormatType from 'ol/format/KML';
 import type VectorSourceType from 'ol/source/Vector';
 import type VectorLayerType from 'ol/layer/Vector';
+import type TileLayer from 'ol/layer/Tile';
+import type TileWMS from 'ol/source/TileWMS';
 
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// Checkbox ya no se usa directamente para capas, pero podría usarse en OSM Categories, así que lo mantenemos.
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
   Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2,
-  Eye, EyeOff // Importar iconos de ojo
+  Eye, EyeOff, Server // Importar icono de Server para GeoServer
 } from 'lucide-react';
 import {
   Accordion,
@@ -36,13 +37,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { MapLayer } from '@/components/geo-mapper-client';
+import type { MapLayer } from '@/components/geo-mapper-client'; // Assuming GeoServerDiscoveredLayer might be defined here or passed
 import { toast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 
+interface GeoServerDiscoveredLayerForControls {
+  name: string;
+  title: string;
+  addedToMap: boolean;
+}
 interface RenderConfig {
   baseLayers?: boolean;
   layers?: boolean;
+  geoServer?: boolean; // New config for GeoServer section
   inspector?: boolean; 
   osmCapabilities?: boolean;
   drawing?: boolean;
@@ -85,6 +92,14 @@ interface MapControlsProps {
   onDownloadFormatChange?: (format: string) => void;
   onDownloadOSMLayers?: () => void;
   isDownloading?: boolean;
+
+  // GeoServer Props
+  geoServerUrlInput?: string;
+  onGeoServerUrlChange?: (url: string) => void;
+  onFetchGeoServerLayers?: () => void;
+  geoServerDiscoveredLayers?: GeoServerDiscoveredLayerForControls[];
+  isLoadingGeoServerLayers?: boolean;
+  onAddGeoServerLayerToMap?: (layerName: string, layerTitle: string) => void;
 }
 
 const SectionHeader: React.FC<{ title: string; description?: string; icon: React.ElementType }> = ({ title, description, icon: Icon }) => (
@@ -131,6 +146,13 @@ const MapControls: React.FC<MapControlsProps> = ({
   onDownloadFormatChange = () => {},
   onDownloadOSMLayers = () => {},
   isDownloading = false,
+
+  geoServerUrlInput = '',
+  onGeoServerUrlChange = () => {},
+  onFetchGeoServerLayers = () => {},
+  geoServerDiscoveredLayers = [],
+  isLoadingGeoServerLayers = false,
+  onAddGeoServerLayerToMap = () => {},
 }) => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [selectedMultipleFiles, setSelectedMultipleFiles] = React.useState<FileList | null>(null);
@@ -138,18 +160,16 @@ const MapControls: React.FC<MapControlsProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const uniqueIdPrefix = useId();
 
-  const [openAccordionItems, setOpenAccordionItems] = React.useState<string[]>([]);
+  const [openAccordionItems, setOpenAccordionItems] = React.useState<string[]>(['layers-section', 'geoserver-section']);
   const prevLayersLengthRef = React.useRef(layers.length);
 
   React.useEffect(() => {
-    if (renderConfig.layers && layers.length > 0 && prevLayersLengthRef.current === 0) {
-      if (!openAccordionItems.includes('layers-section')) {
+    if (renderConfig.layers && layers.length > 0 && !openAccordionItems.includes('layers-section') && prevLayersLengthRef.current === 0) {
         setOpenAccordionItems(prevItems => {
           const newItems = new Set(prevItems);
           newItems.add('layers-section');
           return Array.from(newItems);
         });
-      }
     }
     prevLayersLengthRef.current = layers.length;
   }, [layers.length, renderConfig.layers, openAccordionItems, setOpenAccordionItems]);
@@ -312,7 +332,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       setIsLoading(false);
       resetFileInput();
     }
-  }, [selectedFile, selectedMultipleFiles, onAddLayer, resetFileInput, uniqueIdPrefix]);
+  }, [selectedFile, selectedMultipleFiles, onAddLayer, resetFileInput, uniqueIdPrefix, toast]);
 
   React.useEffect(() => {
     if ((selectedFile || selectedMultipleFiles)) { 
@@ -348,7 +368,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           </div>
         )}
 
-        {renderConfig.layers && (
+        {renderConfig.layers && ( // This section will now also contain inspector button
           <div className="mb-2 p-2 bg-white/5 rounded-md">
             <div className="flex items-center gap-2">
               <Input
@@ -374,7 +394,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                 )}
                 {isLoading ? 'Procesando...' : 'Importar'}
               </Button>
-              {renderConfig.inspector && onToggleInspectMode && (
+              {renderConfig.inspector && onToggleInspectMode && ( // Inspector button here
                 <Button 
                   onClick={onToggleInspectMode} 
                   className={`flex-1 text-xs h-8 focus-visible:ring-primary ${
@@ -454,7 +474,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                               aria-label={`Ver tabla de atributos de ${layer.name}`}
                               title="Ver tabla de atributos de la capa"
                             >
-                              <ListFilter className="h-3.5 w-3.5" />
+                              <Table2 className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -471,6 +491,66 @@ const MapControls: React.FC<MapControlsProps> = ({
                       ))}
                     </ul>
                   </ScrollArea>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {renderConfig.geoServer && (
+            <AccordionItem value="geoserver-section" className="border-b-0 bg-white/5 rounded-md">
+              <AccordionTrigger className="p-3 hover:no-underline hover:bg-white/10 rounded-t-md data-[state=open]:rounded-b-none">
+                <SectionHeader 
+                  title="GeoServer"
+                  description="Conectar y cargar capas WMS."
+                  icon={Server} 
+                />
+              </AccordionTrigger>
+              <AccordionContent className="p-3 pt-2 space-y-3 border-t border-white/10 bg-transparent rounded-b-md">
+                <div className="space-y-1">
+                   <Label htmlFor={`${uniqueIdPrefix}-geoserver-url`} className="text-xs font-medium text-white/90">URL de GeoServer (WMS)</Label>
+                   <Input 
+                     id={`${uniqueIdPrefix}-geoserver-url`}
+                     type="text"
+                     placeholder="Ej: http://localhost:8080/geoserver"
+                     value={geoServerUrlInput}
+                     onChange={(e) => onGeoServerUrlChange(e.target.value)}
+                     className="w-full text-xs h-8 border-white/30 bg-black/20 text-white/90 focus:ring-primary placeholder:text-gray-400/70"
+                   />
+                </div>
+                <Button 
+                  onClick={onFetchGeoServerLayers} 
+                  className="w-full bg-primary/80 hover:bg-primary text-primary-foreground text-xs h-8"
+                  disabled={isLoadingGeoServerLayers || !geoServerUrlInput.trim()}
+                >
+                  {isLoadingGeoServerLayers ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Layers className="mr-2 h-3 w-3" />}
+                  {isLoadingGeoServerLayers ? 'Cargando...' : 'Cargar Capas de GeoServer'}
+                </Button>
+                {geoServerDiscoveredLayers && geoServerDiscoveredLayers.length > 0 && (
+                  <>
+                    <Separator className="my-2 bg-white/20" />
+                    <Label className="text-xs font-medium text-white/90 mb-1 block">Capas Disponibles en GeoServer:</Label>
+                    <ScrollArea className="h-32 border border-white/10 p-2 rounded-md bg-black/10">
+                        <ul className="space-y-1.5">
+                            {geoServerDiscoveredLayers.map((gsLayer) => (
+                                <li key={gsLayer.name} className="flex items-center justify-between p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/20 transition-colors">
+                                    <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white" title={`${gsLayer.title} (${gsLayer.name})`}>
+                                        {gsLayer.title} <span className="text-gray-400 text-xxs">({gsLayer.name})</span>
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs h-6 px-2 bg-green-600/30 hover:bg-green-500/50 border-green-500/50 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() => onAddGeoServerLayerToMap(gsLayer.name, gsLayer.title)}
+                                        disabled={gsLayer.addedToMap}
+                                        title={gsLayer.addedToMap ? "Capa ya añadida" : "Añadir capa al mapa"}
+                                    >
+                                        {gsLayer.addedToMap ? 'Añadida' : 'Añadir'}
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    </ScrollArea>
+                  </>
                 )}
               </AccordionContent>
             </AccordionItem>
