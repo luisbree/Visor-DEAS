@@ -380,7 +380,7 @@ const MapControls: React.FC<MapControlsProps> = ({
               />
               <Button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 bg-primary/70 hover:bg-primary/90 text-primary-foreground text-xs h-8"
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8"
                 disabled={isLoading}
                 title="Importar capa desde archivo"
               >
@@ -394,8 +394,11 @@ const MapControls: React.FC<MapControlsProps> = ({
               {renderConfig.inspector && onToggleInspectMode && (
                 <Button 
                   onClick={onToggleInspectMode} 
-                  variant={isInspectModeActive ? "secondary" : "outline"} 
-                  className={`flex-1 text-xs h-8 ${isInspectModeActive ? 'bg-accent/30 hover:bg-accent/40 text-white' : 'border-white/30 hover:bg-white/10 text-white/90'}`}
+                  className={`flex-1 text-xs h-8 ${
+                    isInspectModeActive 
+                      ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
+                      : 'border border-primary text-primary bg-transparent hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary'
+                  }`}
                   disabled={!!activeDrawTool} 
                   title="Activar/Desactivar modo inspector"
                 >

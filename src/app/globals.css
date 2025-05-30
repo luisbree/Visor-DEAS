@@ -14,8 +14,8 @@
     --popover: 0 0% 100%; /* White */
     --popover-foreground: 0 0% 20%;
 
-    --primary: 240 67% 94.1%; /* Soft lavender #E6E6FA */
-    --primary-foreground: 240 40% 25%; /* Darker lavender/purple */
+    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary-foreground: 210 40% 98%; /* White / Very Light Gray for contrast */
 
     --secondary: 0 0% 90%; /* Neutral light gray */
     --secondary-foreground: 0 0% 20%;
@@ -31,7 +31,7 @@
 
     --border: 0 0% 85%;
     --input: 0 0% 85%;
-    --ring: 174 33.3% 70.4%; /* Muted teal for focus rings */
+    --ring: 217 91% 60%; /* Vibrant Blue for focus rings */
 
     --radius: 0.5rem;
 
@@ -64,8 +64,8 @@
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary-foreground: 210 40% 98%; /* White / Very Light Gray */
 
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
@@ -73,7 +73,7 @@
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
 
-    --accent: 0 0% 14.9%; /* Or a dark mode teal */
+    --accent: 174 33.3% 70.4%; /* Muted teal - can remain or be adjusted for dark mode */
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -81,7 +81,7 @@
 
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%; /* Or dark mode accent ring */
+    --ring: 217 91% 60%; /* Vibrant Blue for focus rings */
     
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
