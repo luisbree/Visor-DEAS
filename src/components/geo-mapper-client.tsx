@@ -354,7 +354,7 @@ export default function GeoMapperClient() {
 
   }, [isInspectModeActive, activeDrawTool, processAndDisplayFeatures]);
 
-  const handleDragBoxEnd = useCallback((event: any) => {
+  const handleDragBoxEnd = useCallback((event: any) => { // event is DragBoxEvent
     if (!mapRef.current || !isInspectModeActive) return;
     const extent = event.target.getGeometry().getExtent();
     const foundFeatures: OLFeature<any>[] = [];
@@ -392,6 +392,7 @@ export default function GeoMapperClient() {
         
         if (dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
+            // Check if interaction is part of map before removing
             const interactionsArray = currentMap.getInteractions().getArray();
             if (interactionsArray.includes(dragBoxInteractionRef.current)) {
                 currentMap.removeInteraction(dragBoxInteractionRef.current);
@@ -400,21 +401,21 @@ export default function GeoMapperClient() {
             dragBoxInteractionRef.current = null;
         }
         
+        // Restore default DragZoom only if it was managed (i.e., defaultDragZoomInteractionRef.current is not null)
         if (defaultDragZoomInteractionRef.current) {
-            // Restore default DragZoom to its previous state if it was managed
              const dragZoomInteraction = currentMap.getInteractions().getArray().find(
                 (interaction) => interaction === defaultDragZoomInteractionRef.current
              );
-             if (dragZoomInteraction) {
+             if (dragZoomInteraction) { // Ensure it's still on the map (it should be)
                 dragZoomInteraction.setActive(wasDragZoomActiveRef.current);
              }
-            defaultDragZoomInteractionRef.current = null; 
+            defaultDragZoomInteractionRef.current = null; // Clear the ref after restoring
         }
     };
 
     if (isInspectModeActive && !activeDrawTool) {
         if (mapDiv) mapDiv.classList.add('cursor-crosshair');
-        if (!currentMap) return cleanupInspectionInteractions;
+        if (!currentMap) return cleanupInspectionInteractions; // Early exit if map not ready
 
         currentMap.on('singleclick', handleMapClick);
 
@@ -424,30 +425,33 @@ export default function GeoMapperClient() {
                 if (interaction instanceof DragZoom) {
                     defaultDragZoomInteractionRef.current = interaction;
                     wasDragZoomActiveRef.current = interaction.getActive();
-                    interaction.setActive(false); 
+                    interaction.setActive(false); // Deactivate it
                 }
             });
         }
         
+        // Ensure DragBox is only added if it doesn't exist
         if (!dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current = new DragBox({
                 condition: platformModifierKeyOnly, 
-                // className: 'my-custom-dragbox-class' // If you want to use a custom class
+                // className: 'my-custom-dragbox-class' // For custom styling if needed via globals.css
             });
             currentMap.addInteraction(dragBoxInteractionRef.current);
         }
         
-        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); 
+        // Ensure 'boxend' listener is fresh
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); // Remove previous if any
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
 
     } else {
         cleanupInspectionInteractions();
-        if (!isInspectModeActive) {
+        if (!isInspectModeActive) { // If inspect mode is being turned off, hide attributes
              setSelectedFeatureAttributes(null);
              setIsFeatureAttributesPanelVisible(false);
         }
     }
 
+    // This return is the cleanup function for the useEffect hook
     return cleanupInspectionInteractions;
 
   }, [isInspectModeActive, activeDrawTool, handleMapClick, handleDragBoxEnd]);
@@ -746,6 +750,8 @@ export default function GeoMapperClient() {
       return;
     }
 
+    const geoJsonFormatter = new GeoJSON();
+
     try {
       if (downloadFormat === 'geojson') {
         const allFeatures: OLFeature<any>[] = [];
@@ -756,7 +762,7 @@ export default function GeoMapperClient() {
           }
         });
         if (allFeatures.length === 0) throw new Error("No hay entidades en las capas OSM seleccionadas.");
-        const geojsonString = new GeoJSON().writeFeatures(allFeatures, {
+        const geojsonString = geoJsonFormatter.writeFeatures(allFeatures, {
           dataProjection: 'EPSG:4326',
           featureProjection: 'EPSG:3857',
           featureProperties: (feature: OLFeature<any>) => { 
@@ -785,44 +791,82 @@ export default function GeoMapperClient() {
         toast({ title: "Descarga Completa", description: "Entidades OSM descargadas como KML." });
 
       } else if (downloadFormat === 'shp') {
-        const geoJsonDataPerLayer: { [key: string]: any } = {};
-        let featuresFound = false;
+        const geoJsonDataForShpWrite: { [key: string]: any } = {}; // For shpwrite.zip data param
+        const customTypesForShpWrite: { 
+            [key: string]: { 
+                points: any[], 
+                lines: any[], 
+                polygons: any[] 
+            } 
+        } = {}; // For shpwrite.zip options.types param
+        
+        let featuresFoundForShp = false;
+
+        const sanitizeProperties = (olFeature: OLFeature<any>) => {
+          const props = { ...olFeature.getProperties() };
+          delete props[olFeature.getGeometryName() as string];
+          const sanitizedProps: Record<string, any> = {};
+          for (const key in props) {
+            let sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
+            if(sanitizedKey.length === 0) sanitizedKey = `prop${Object.keys(sanitizedProps).length}`; 
+            let counter = 0;
+            let finalKey = sanitizedKey;
+            while(finalKey in sanitizedProps) {
+                counter++;
+                finalKey = `${sanitizedKey.substring(0, 10 - String(counter).length)}${counter}`;
+            }
+            sanitizedProps[finalKey] = props[key];
+          }
+          return sanitizedProps;
+        };
 
         osmLayers.forEach(layer => {
           const source = layer.olLayer.getSource();
-          const layerFeatures = source ? source.getFeatures() : [];
-          if (layerFeatures.length > 0) {
-            featuresFound = true;
-            const featureCollection = new GeoJSON().writeFeaturesObject(layerFeatures, {
+          const olFeatures = source ? source.getFeatures() : [];
+          
+          if (olFeatures.length > 0) {
+            featuresFoundForShp = true;
+            const layerFileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\s+/g, '_');
+            
+            // Create a full FeatureCollection for this layer to pass as main data
+            geoJsonDataForShpWrite[layerFileName] = geoJsonFormatter.writeFeaturesObject(olFeatures, {
               dataProjection: 'EPSG:4326',
               featureProjection: 'EPSG:3857',
-              featureProperties: (feature: OLFeature<any>) => {
-                const props = { ...feature.getProperties() };
-                delete props[feature.getGeometryName() as string];
-                const sanitizedProps: Record<string, any> = {};
-                for (const key in props) {
-                    let sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
-                    if(sanitizedKey.length === 0) sanitizedKey = `prop${Object.keys(sanitizedProps).length}`; 
-                    
-                    let counter = 0;
-                    let finalKey = sanitizedKey;
-                    while(finalKey in sanitizedProps) {
-                        counter++;
-                        finalKey = `${sanitizedKey.substring(0, 10 - String(counter).length)}${counter}`;
-                    }
-                    sanitizedProps[finalKey] = props[key];
-                }
-                return sanitizedProps;
+              featureProperties: sanitizeProperties
+            });
+
+            // Prepare data for options.types
+            customTypesForShpWrite[layerFileName] = { points: [], lines: [], polygons: [] };
+
+            olFeatures.forEach(olFeature => {
+              const geoJsonFeature = geoJsonFormatter.writeFeatureObject(olFeature, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857',
+              });
+              // Apply property sanitization to the individual GeoJSON feature
+              geoJsonFeature.properties = sanitizeProperties(olFeature);
+
+
+              const geomType = olFeature.getGeometry()?.getType();
+              if (geomType === 'Point' || geomType === 'MultiPoint') {
+                customTypesForShpWrite[layerFileName].points.push(geoJsonFeature);
+              } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+                customTypesForShpWrite[layerFileName].lines.push(geoJsonFeature);
+              } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+                customTypesForShpWrite[layerFileName].polygons.push(geoJsonFeature);
               }
             });
-            const fileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\s+/g, '_');
-            geoJsonDataPerLayer[fileName] = featureCollection;
           }
         });
 
-        if (!featuresFound) throw new Error("No hay entidades en las capas OSM para exportar como Shapefile.");
+        if (!featuresFoundForShp) throw new Error("No hay entidades en las capas OSM para exportar como Shapefile.");
         
-        const zipContentBase64 = await shpwrite.zip(geoJsonDataPerLayer);
+        const shpWriteOptions = {
+          folder: 'shapefiles', // Optional: name of the folder within the zip
+          types: customTypesForShpWrite
+        };
+        
+        const zipContentBase64 = await shpwrite.zip(geoJsonDataForShpWrite, shpWriteOptions);
         
         const byteString = atob(zipContentBase64);
         const arrayBuffer = new ArrayBuffer(byteString.length);
@@ -1002,3 +1046,4 @@ export default function GeoMapperClient() {
     </div>
   );
 }
+
