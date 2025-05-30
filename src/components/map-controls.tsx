@@ -389,7 +389,7 @@ const MapControls: React.FC<MapControlsProps> = ({
               {renderConfig.inspector && onToggleInspectMode && (
                 <Button 
                   onClick={onToggleInspectMode} 
-                  className={`flex-1 text-xs h-8 ${
+                  className={`flex-1 text-xs h-8 focus-visible:ring-primary ${
                     isInspectModeActive 
                       ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
                       : 'border border-white/30 text-white/90 bg-black/20 hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary'
@@ -523,8 +523,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                 {activeDrawTool && (
                   <Button 
                     onClick={onStopDrawingTool} 
-                    variant="outline" 
-                    className="w-full text-xs h-8 border-white/30 hover:bg-white/10 text-white/90"
+                    className="w-full text-xs h-8 border border-white/30 hover:bg-white/10 text-white/90 bg-black/20 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
                   >
                     <Ban className="mr-2 h-3 w-3" /> Detener Dibujo
                   </Button>
@@ -532,8 +531,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                 <Separator className="my-2 bg-white/20" />
                 <Button 
                   onClick={onClearDrawnFeatures} 
-                  variant="outline" 
-                  className="w-full text-xs h-8 border-white/30 hover:bg-red-500/20 hover:text-red-300 text-white/90"
+                  className="w-full text-xs h-8 border border-white/30 text-white/90 bg-black/20 hover:bg-red-500/20 hover:text-red-300 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
                   disabled={!!activeDrawTool}
                 >
                   <Eraser className="mr-2 h-3 w-3" /> Limpiar Dibujos
