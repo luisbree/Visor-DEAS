@@ -24,7 +24,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   onClose,
 }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
-  const [size, setSize] = useState({ width: 450, height: 350 }); 
+  const [size, setSize] = useState({ width: 450, height: 350 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -40,7 +40,8 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
     const targetElement = e.target as HTMLElement;
-    if (targetElement.closest('button')) { // Exclude buttons within the header
+    // Exclude buttons or other specific interactive elements within the header if necessary
+    if (targetElement.closest('button')) {
         return;
     }
     
@@ -63,7 +64,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
       
-      // No restriction to mapAreaRef needed here for free dragging
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
       }
@@ -128,7 +128,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
         maxHeight: '80vh',
         zIndex: 40, 
         resize: 'both', 
-        overflow: 'hidden', // Important for resize handle to work and contain content
+        overflow: 'hidden',
       }}
       onMouseUpCapture={() => {
         if (panelRef.current) {
@@ -150,44 +150,42 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
           <span className="sr-only">Cerrar</span>
         </Button>
       </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-hidden flex flex-col"> {/* overflow-hidden here is key */}
-        <ScrollArea className="flex-grow h-0 w-full"> {/* Handles vertical scroll */}
-          <div className="p-3 overflow-x-auto"> {/* Added overflow-x-auto here, and padding for table */}
-            {allKeys.length > 0 && currentVisibleFeatures.length > 0 ? (
-              <Table className="min-w-full"> 
-                <TableHeader>
-                  <TableRow className="bg-gray-800/50 hover:bg-gray-800/70">
+      <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
+        <ScrollArea className="flex-grow h-0 w-full p-3"> {/* Padding moved here, ScrollArea for vertical scroll */}
+          {allKeys.length > 0 && currentVisibleFeatures.length > 0 ? (
+            <Table className="min-w-full"> {/* This Table component from ShadCN has internal overflow-auto div */}
+              <TableHeader>
+                <TableRow className="bg-gray-800/50 hover:bg-gray-800/70">
+                  {allKeys.map(key => (
+                    <TableHead 
+                      key={key} 
+                      className="px-3 py-2 text-xs font-medium text-gray-300 whitespace-nowrap sticky top-0 bg-gray-700/90 backdrop-blur-sm z-10"
+                    >
+                      {key}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentVisibleFeatures.map((attrs, idx) => (
+                  <TableRow key={`${currentPage}-${startIndex + idx}`} className="hover:bg-gray-700/30">
                     {allKeys.map(key => (
-                      <TableHead 
-                        key={key} 
-                        className="px-3 py-2 text-xs font-medium text-gray-300 whitespace-nowrap sticky top-0 bg-gray-700/90 backdrop-blur-sm z-10"
+                      <TableCell
+                        key={key}
+                        className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
                       >
-                        {key}
-                      </TableHead>
+                        {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentVisibleFeatures.map((attrs, idx) => (
-                    <TableRow key={`${currentPage}-${startIndex + idx}`} className="hover:bg-gray-700/30">
-                      {allKeys.map(key => (
-                        <TableCell
-                          key={key}
-                          className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
-                        >
-                          {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="p-4 text-sm text-center text-gray-400">
-                {featuresAttributes.length > 0 ? 'No hay atributos para mostrar en esta página.' : 'No hay atributos para mostrar.'}
-              </p>
-            )}
-          </div>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="p-4 text-sm text-center text-gray-400">
+              {featuresAttributes.length > 0 ? 'No hay atributos para mostrar en esta página.' : 'No hay atributos para mostrar.'}
+            </p>
+          )}
         </ScrollArea>
         {totalPages > 1 && (
           <div className="flex items-center justify-between p-2 border-t border-gray-700/50 bg-gray-800/50">
@@ -222,3 +220,4 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
+
