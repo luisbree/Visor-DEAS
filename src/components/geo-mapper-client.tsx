@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { type Map as OLMap, Feature as OLFeature } from 'ol'; // OLFeature importado como valor
+import { type Map as OLMap, Feature as OLFeature } from 'ol'; 
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
@@ -181,6 +181,8 @@ export default function GeoMapperClient() {
   const [isInspectModeActive, setIsInspectModeActive] = useState(false);
   const [selectedFeatureAttributes, setSelectedFeatureAttributes] = useState<Record<string, any>[] | null>(null);
   const [isFeatureAttributesPanelVisible, setIsFeatureAttributesPanelVisible] = useState(false);
+  const [currentInspectedLayerName, setCurrentInspectedLayerName] = useState<string | null>(null);
+
 
   const drawingSourceRef = useRef<VectorSourceType<OLFeature<any>> | null>(null);
   const drawingLayerRef = useRef<VectorLayerType<VectorSourceType<OLFeature<any>>> | null>(null);
@@ -347,15 +349,18 @@ export default function GeoMapperClient() {
         if (allAttributes.length > 0) {
           setSelectedFeatureAttributes(allAttributes);
           setIsFeatureAttributesPanelVisible(true);
+          // No establecer currentInspectedLayerName aquí, se hace en el llamador si es de capa completa
           toast(`Panel de atributos abierto con ${allAttributes.length} entidad(es).`);
         } else {
           setSelectedFeatureAttributes(null);
           setIsFeatureAttributesPanelVisible(false);
+          setCurrentInspectedLayerName(null);
           toast("La(s) entidad(es) seleccionada(s) no tienen atributos visibles.");
         }
       } else {
         setSelectedFeatureAttributes(null);
         setIsFeatureAttributesPanelVisible(false);
+        setCurrentInspectedLayerName(null);
       }
   }, []);
 
@@ -376,11 +381,12 @@ export default function GeoMapperClient() {
         return false; 
     }, { hitTolerance: 5 }); 
 
+    setCurrentInspectedLayerName(null); // Inspección por clic/rectángulo, no es de capa completa
     processAndDisplayFeatures(featuresAtPixel);
 
   }, [isInspectModeActive, activeDrawTool, processAndDisplayFeatures]);
 
-  const handleDragBoxEnd = useCallback((event: any) => { // event is DragBoxEvent
+  const handleDragBoxEnd = useCallback((event: any) => { 
     if (!mapRef.current || !isInspectModeActive) return;
     const extent = event.target.getGeometry().getExtent();
     const foundFeatures: OLFeature<any>[] = [];
@@ -402,6 +408,7 @@ export default function GeoMapperClient() {
       });
     }
     
+    setCurrentInspectedLayerName(null); // Inspección por clic/rectángulo, no es de capa completa
     processAndDisplayFeatures(foundFeatures);
   }, [layers, processAndDisplayFeatures, isInspectModeActive]);
 
@@ -468,6 +475,7 @@ export default function GeoMapperClient() {
         if (!isInspectModeActive) { 
              setSelectedFeatureAttributes(null);
              setIsFeatureAttributesPanelVisible(false);
+             setCurrentInspectedLayerName(null);
         }
     }
 
@@ -921,13 +929,16 @@ export default function GeoMapperClient() {
     const source = layerToShow.olLayer.getSource();
     if (!source) {
       toast(`La capa "${layerToShow.name}" no tiene fuente de datos.`);
+      setCurrentInspectedLayerName(null);
       return;
     }
     const features = source.getFeatures();
     if (features.length === 0) {
       toast(`La capa "${layerToShow.name}" no contiene entidades.`);
+      setCurrentInspectedLayerName(null);
       return;
     }
+    setCurrentInspectedLayerName(layerToShow.name);
     processAndDisplayFeatures(features);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers, processAndDisplayFeatures]); 
@@ -955,9 +966,11 @@ export default function GeoMapperClient() {
         <FeatureAttributesPanel
           featuresAttributes={selectedFeatureAttributes}
           isVisible={isFeatureAttributesPanelVisible}
+          layerName={currentInspectedLayerName}
           onClose={() => {
             setIsFeatureAttributesPanelVisible(false);
             setSelectedFeatureAttributes(null);
+            setCurrentInspectedLayerName(null);
           }}
         />
 
@@ -1002,6 +1015,7 @@ export default function GeoMapperClient() {
                     if (!newInspectModeState) { 
                       setIsFeatureAttributesPanelVisible(false);
                       setSelectedFeatureAttributes(null);
+                      setCurrentInspectedLayerName(null);
                     }
                   }}
                   activeDrawTool={null} 

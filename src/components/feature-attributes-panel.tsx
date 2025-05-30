@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { X as LucideX, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X as LucideX, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface FeatureAttributesPanelProps {
   featuresAttributes: Record<string, any>[] | null;
   isVisible: boolean;
+  layerName?: string | null;
   onClose: () => void;
 }
 
@@ -19,10 +20,11 @@ const ITEMS_PER_PAGE = 50;
 const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   featuresAttributes,
   isVisible,
+  layerName,
   onClose,
 }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
-  const [size, setSize] = useState({ width: 450, height: 350 }); // Adjusted initial size
+  const [size, setSize] = useState({ width: 450, height: 350 }); 
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -30,7 +32,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    // Reset to first page when featuresAttributes change or panel becomes visible
     if (isVisible) {
       setCurrentPage(1);
     }
@@ -39,7 +40,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
     const targetElement = e.target as HTMLElement;
-    // Prevent drag if clicking on a button within the header
     if (targetElement.closest('button')) {
         return;
     }
@@ -63,7 +63,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
       
-      // Ensure newX and newY are numbers before setting position
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
       }
@@ -97,10 +96,9 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentVisibleFeatures = featuresAttributes.slice(startIndex, endIndex);
 
-  // Determine all unique keys from all features for table headers
   const allKeys = Array.from(
     new Set(featuresAttributes.flatMap(attrs => Object.keys(attrs)))
-  ).sort(); // Sort keys alphabetically for consistent column order
+  ).sort();
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
@@ -109,6 +107,10 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const handlePrevPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
+
+  const panelTitle = layerName 
+    ? `${layerName} (${featuresAttributes.length})` 
+    : `Atributos (${featuresAttributes.length})`;
 
   return (
     <div
@@ -119,20 +121,18 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
         left: `${position.x}px`,
         width: `${size.width}px`,
         height: `${size.height}px`,
-        minWidth: '300px', // Increased min width
-        minHeight: '250px', // Increased min height
+        minWidth: '300px', 
+        minHeight: '250px', 
         maxWidth: '90vw',
         maxHeight: '80vh',
-        zIndex: 40, // Ensure it's above map controls but potentially below critical dialogs
-        resize: 'both', // Allows resizing from bottom-right corner
-        overflow: 'hidden', // Important for resize to work and contain children
+        zIndex: 40, 
+        resize: 'both', 
+        overflow: 'hidden', 
       }}
-      // Capture mouse up on the panel itself to update size state after resize
       onMouseUpCapture={() => {
         if (panelRef.current) {
             const newWidth = panelRef.current.offsetWidth;
             const newHeight = panelRef.current.offsetHeight;
-            // Only update state if size actually changed to avoid unnecessary re-renders
             if (newWidth !== size.width || newHeight !== size.height) {
                  setSize({ width: newWidth, height: newHeight });
             }
@@ -140,23 +140,20 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       }}
     >
       <CardHeader
-        className="flex flex-row items-center justify-between p-3 bg-gray-700/80 cursor-grab rounded-t-lg"
+        className="flex flex-row items-center justify-between p-2 bg-gray-700/80 cursor-grab rounded-t-lg"
         onMouseDown={handleMouseDownOnHeader}
       >
-        <div className="flex items-center">
-            <GripVertical className="h-5 w-5 mr-2 text-gray-400 pointer-events-none" />
-            <CardTitle className="text-base font-semibold text-white">Atributos ({featuresAttributes.length})</CardTitle>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-white hover:bg-gray-600/80">
+        <CardTitle className="text-sm font-semibold text-white">{panelTitle}</CardTitle>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6 text-white hover:bg-gray-600/80">
           <LucideX className="h-4 w-4" />
           <span className="sr-only">Cerrar</span>
         </Button>
       </CardHeader>
       <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
-        <ScrollArea className="flex-grow h-0 w-full"> {/* Adjusted for flex layout */}
-          <div className="p-3"> {/* Added padding around the table for aesthetics */}
+        <ScrollArea className="flex-grow h-0 w-full">
+          <div className="p-3">
           {allKeys.length > 0 && currentVisibleFeatures.length > 0 ? (
-            <Table className="min-w-full">
+            <Table className="min-w-full"> {/* Table component from ShadCN already has overflow-auto wrapper */}
               <TableHeader>
                 <TableRow className="bg-gray-800/50 hover:bg-gray-800/70">
                   {allKeys.map(key => (
@@ -172,7 +169,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
                     {allKeys.map(key => (
                       <TableCell
                         key={key}
-                        className="px-3 py-1.5 text-xs text-slate-200 border-b border-gray-700/50 whitespace-normal break-words" // text-slate-200 for light text on dark panel
+                        className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
                       >
                         {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
                       </TableCell>
@@ -221,5 +218,3 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
-
-    
