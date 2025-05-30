@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { type Map as OLMap, Feature as OLFeature } from 'ol'; 
+import { type Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
 import { ChevronDown, ChevronUp, MapPin, Loader2, GripVertical } from 'lucide-react';
 import Draw from 'ol/interaction/Draw';
 import DragBox from 'ol/interaction/DragBox';
-import DragZoom from 'ol/interaction/DragZoom';
+import DragZoom from 'ol/interaction/DragZoom'; // Import DragZoom
 import { platformModifierKeyOnly } from 'ol/events/condition';
 import { KML, GeoJSON } from 'ol/format';
 import VectorLayer from 'ol/layer/Vector';
@@ -54,62 +54,62 @@ const osmCategoryConfig: OSMCategoryConfig[] = [
   {
     id: 'watercourses',
     name: 'OSM Cursos de Agua',
-    overpassQueryFragment: (bboxStr) => `nwr[waterway~"^(river|stream)$"](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[waterway~"^(river|stream)$"](\${bboxStr});\`,
     matcher: (tags) => tags && (tags.waterway === 'river' || tags.waterway === 'stream'),
     style: new Style({ stroke: new Stroke({ color: '#3a86ff', width: 2 }) })
   },
   {
     id: 'water_bodies',
     name: 'OSM Cuerpos de Agua',
-    overpassQueryFragment: (bboxStr) => `nwr[natural="water"](${bboxStr});\nnwr[landuse="reservoir"](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[natural="water"](\${bboxStr});\\nnwr[landuse="reservoir"](\${bboxStr});\`,
     matcher: (tags) => tags && (tags.natural === 'water' || tags.landuse === 'reservoir'),
     style: new Style({ fill: new Fill({ color: 'rgba(58,134,255,0.4)' }), stroke: new Stroke({ color: '#3a86ff', width: 1 }) })
   },
   {
     id: 'roads_paths',
     name: 'OSM Rutas y Caminos',
-    overpassQueryFragment: (bboxStr) => `nwr[highway](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[highway](\${bboxStr});\`,
     matcher: (tags) => tags && !!tags.highway,
     style: new Style({ stroke: new Stroke({ color: '#adb5bd', width: 3 }) })
   },
   {
     id: 'admin_boundaries',
     name: 'OSM Límites Admin.',
-    overpassQueryFragment: (bboxStr) => `nwr[boundary="administrative"][admin_level](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[boundary="administrative"][admin_level](\${bboxStr});\`,
     matcher: (tags) => tags && tags.boundary === 'administrative' && tags.admin_level,
     style: new Style({ stroke: new Stroke({ color: '#ff006e', width: 2, lineDash: [4, 8] }) })
   },
   {
     id: 'green_areas',
     name: 'OSM Áreas Verdes',
-    overpassQueryFragment: (bboxStr) => `nwr[leisure="park"](${bboxStr});\nnwr[landuse="forest"](${bboxStr});\nnwr[natural="wood"](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[leisure="park"](\${bboxStr});\\nnwr[landuse="forest"](\${bboxStr});\\nnwr[natural="wood"](\${bboxStr});\`,
     matcher: (tags) => tags && (tags.leisure === 'park' || tags.landuse === 'forest' || tags.natural === 'wood'),
     style: new Style({ fill: new Fill({ color: 'rgba(13,166,75,0.4)' }), stroke: new Stroke({ color: '#0da64b', width: 1 }) })
   },
   {
     id: 'health_centers',
     name: 'OSM Centros de Salud',
-    overpassQueryFragment: (bboxStr) => `nwr[amenity~"^(hospital|clinic|doctors|pharmacy)$"](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[amenity~"^(hospital|clinic|doctors|pharmacy)$"](\${bboxStr});\`,
     matcher: (tags) => tags && ['hospital', 'clinic', 'doctors', 'pharmacy'].includes(tags.amenity),
     style: new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({color: '#d90429'}), stroke: new Stroke({color: 'white', width: 1.5})})})
   },
   {
     id: 'educational',
     name: 'OSM Educacionales',
-    overpassQueryFragment: (bboxStr) => `nwr[amenity~"^(school|university|college|kindergarten)$"](${bboxStr});`,
+    overpassQueryFragment: (bboxStr) => \`nwr[amenity~"^(school|university|college|kindergarten)$"](\${bboxStr});\`,
     matcher: (tags) => tags && ['school', 'university', 'college', 'kindergarten'].includes(tags.amenity),
     style: new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({color: '#8338ec'}), stroke: new Stroke({color: 'white', width: 1.5})})})
   },
   {
     id: 'social_institutions',
     name: 'OSM Instituciones Sociales',
-    overpassQueryFragment: (bboxStr) => `
-      nwr[amenity~"^(community_centre|social_facility|place_of_worship)$"](${bboxStr});
-      nwr[office="ngo"](${bboxStr});
-      nwr[leisure="club"](${bboxStr});
-    `,
+    overpassQueryFragment: (bboxStr) => \`
+      nwr[amenity~"^(community_centre|social_facility|place_of_worship)$"](\${bboxStr});
+      nwr[office="ngo"](\${bboxStr});
+      nwr[leisure="club"](\${bboxStr});
+    \`,
     matcher: (tags) => tags && (
-      tags.amenity === 'community_centre' || 
+      tags.amenity === 'community_centre' ||
       tags.amenity === 'social_facility' ||
       tags.amenity === 'place_of_worship' ||
       tags.office === 'ngo' ||
@@ -120,15 +120,15 @@ const osmCategoryConfig: OSMCategoryConfig[] = [
   {
     id: 'cultural_heritage',
     name: 'OSM Patrimonio Cultural',
-    overpassQueryFragment: (bboxStr) => `
-      nwr[historic](${bboxStr});
-      nwr[tourism="museum"](${bboxStr});
-      nwr[tourism="artwork"](${bboxStr});
-      nwr[amenity="place_of_worship"][historic](${bboxStr});
-      nwr[amenity="place_of_worship"][heritage](${bboxStr});
-    `,
+    overpassQueryFragment: (bboxStr) => \`
+      nwr[historic](\${bboxStr});
+      nwr[tourism="museum"](\${bboxStr});
+      nwr[tourism="artwork"](\${bboxStr});
+      nwr[amenity="place_of_worship"][historic](\${bboxStr});
+      nwr[amenity="place_of_worship"][heritage](\${bboxStr});
+    \`,
     matcher: (tags) => tags && (
-      tags.historic || 
+      tags.historic ||
       tags.tourism === 'museum' ||
       tags.tourism === 'artwork' ||
       (tags.amenity === 'place_of_worship' && (tags.historic || tags.heritage))
@@ -145,8 +145,8 @@ const availableBaseLayersForSelect = BASE_LAYER_DEFINITIONS.map(def => ({
 }));
 
 
-const PANEL_WIDTH = 350; 
-const PANEL_PADDING = 16; 
+const PANEL_WIDTH = 350;
+const PANEL_PADDING = 16;
 
 function triggerDownload(content: string, fileName: string, contentType: string) {
   const blob = new Blob([content], { type: contentType });
@@ -173,17 +173,17 @@ function triggerDownloadArrayBuffer(content: ArrayBuffer, fileName: string, cont
 export default function GeoMapperClient() {
   const [layers, setLayers] = useState<MapLayer[]>([]);
   const mapRef = useRef<OLMap | null>(null);
-  const mapElementRef = useRef<HTMLDivElement | null>(null); 
+  const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapAreaRef = useRef<HTMLDivElement>(null);
-  
+
   const toolsPanelRef = useRef<HTMLDivElement>(null);
-  const [isToolsPanelCollapsed, setIsToolsPanelCollapsed] = useState(false); 
+  const [isToolsPanelCollapsed, setIsToolsPanelCollapsed] = useState(false);
   const [toolsPanelPosition, setToolsPanelPosition] = useState({ x: PANEL_PADDING, y: PANEL_PADDING });
   const [isToolsPanelDragging, setIsToolsPanelDragging] = useState(false);
   const toolsPanelDragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
 
   const layersPanelRef = useRef<HTMLDivElement>(null);
-  const [isLayersPanelCollapsed, setIsLayersPanelCollapsed] = useState(false); 
+  const [isLayersPanelCollapsed, setIsLayersPanelCollapsed] = useState(false);
   const [layersPanelPosition, setLayersPanelPosition] = useState({ x: PANEL_PADDING, y: PANEL_PADDING });
   const [isLayersPanelDragging, setIsLayersPanelDragging] = useState(false);
   const layersPanelDragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
@@ -197,7 +197,7 @@ export default function GeoMapperClient() {
   const drawingSourceRef = useRef<VectorSourceType<OLFeature<any>> | null>(null);
   const drawingLayerRef = useRef<VectorLayerType<VectorSourceType<OLFeature<any>>> | null>(null);
   const drawInteractionRef = useRef<Draw | null>(null);
-  
+
   const dragBoxInteractionRef = useRef<DragBox | null>(null);
   const defaultDragZoomInteractionRef = useRef<DragZoom | null>(null);
   const wasDragZoomActiveRef = useRef<boolean>(false);
@@ -206,7 +206,7 @@ export default function GeoMapperClient() {
   const [activeDrawTool, setActiveDrawTool] = useState<string | null>(null);
   const [isFetchingOSM, setIsFetchingOSM] = useState(false);
   const [selectedOSMCategoryIds, setSelectedOSMCategoryIds] = useState<string[]>([]);
-  
+
   const selectedOSMCategoryIdsRef = useRef(selectedOSMCategoryIds);
   useEffect(() => {
     selectedOSMCategoryIdsRef.current = selectedOSMCategoryIds;
@@ -236,13 +236,13 @@ export default function GeoMapperClient() {
             y: PANEL_PADDING,
         });
     }
-  }, []); 
+  }, []);
 
   const addLayer = useCallback((newLayer: MapLayer) => {
     setLayers(prevLayers => {
       // Prevent adding the same layer ID twice
       if (prevLayers.some(l => l.id === newLayer.id)) {
-        toast(`La capa "${newLayer.name}" ya está en el mapa.`);
+        toast(\`La capa "\${newLayer.name}" ya está en el mapa.\`);
         return prevLayers;
       }
       return [...prevLayers, newLayer];
@@ -253,13 +253,13 @@ export default function GeoMapperClient() {
     setLayers(prevLayers => prevLayers.filter(layer => {
         if (layer.id === layerId) {
             if (layer.isGeoServerLayer) {
-                setGeoServerDiscoveredLayers(prevGsLayers => 
-                    prevGsLayers.map(gsLayer => 
+                setGeoServerDiscoveredLayers(prevGsLayers =>
+                    prevGsLayers.map(gsLayer =>
                         gsLayer.name === layer.name ? { ...gsLayer, addedToMap: false } : gsLayer
                     )
                 );
             }
-            toast(`Capa "${layer.name}" eliminada del mapa.`);
+            toast(\`Capa "\${layer.name}" eliminada del mapa.\`);
             return false;
         }
         return true;
@@ -280,7 +280,7 @@ export default function GeoMapperClient() {
 
   const setMapInstanceAndElement = useCallback((mapInstance: OLMap, element: HTMLDivElement) => {
     mapRef.current = mapInstance;
-    mapElementRef.current = element; 
+    mapElementRef.current = element;
 
     if (!mapRef.current) {
       console.error("setMapInstanceAndElement called but mapRef.current is null.");
@@ -290,28 +290,28 @@ export default function GeoMapperClient() {
     if (typeof drawingSourceRef !== 'object' || drawingSourceRef === null || !('current' in drawingSourceRef)) {
         console.error("CRITICAL: drawingSourceRef is not a valid React ref object. Value:", drawingSourceRef, "Type:", typeof drawingSourceRef);
         toast("Error Crítico: Referencia de capa de dibujo (source) corrupta.");
-        return; 
+        return;
     }
     if (typeof drawingLayerRef !== 'object' || drawingLayerRef === null || !('current' in drawingLayerRef)) {
         console.error("CRITICAL: drawingLayerRef is not a valid React ref object. Value:", drawingLayerRef, "Type:", typeof drawingLayerRef);
         toast("Error Crítico: Referencia de capa de dibujo (layer) corrupta.");
-        return; 
+        return;
     }
 
-    if (!drawingLayerRef.current) { 
+    if (!drawingLayerRef.current) {
       try {
         if (!drawingSourceRef.current) {
              drawingSourceRef.current = new VectorSource({ wrapX: false });
         }
-        
+
         if (!drawingSourceRef.current) {
             console.error("CRITICAL: drawingSourceRef.current is null after attempting initialization. Cannot create drawing layer.");
             toast("Error Crítico: No se pudo inicializar la fuente de la capa de dibujo.");
-            return; 
+            return;
         }
-        
+
         drawingLayerRef.current = new VectorLayer({
-            source: drawingSourceRef.current, 
+            source: drawingSourceRef.current,
             style: new Style({
             fill: new Fill({ color: 'rgba(0, 150, 255, 0.2)' }),
             stroke: new Stroke({ color: '#007bff', width: 2 }),
@@ -321,12 +321,12 @@ export default function GeoMapperClient() {
                 stroke: new Stroke({ color: '#ffffff', width: 1.5 })
             }),
             }),
-            zIndex: 1000 
+            zIndex: 1000
         });
         mapRef.current.addLayer(drawingLayerRef.current);
-        
+
       } catch (e: any) {
-        console.error("Error during drawing layer/source INSTANTIATION or map ADDITION:", e.message, { 
+        console.error("Error during drawing layer/source INSTANTIATION or map ADDITION:", e.message, {
           drawingSourceRef_current_value_exists: !!drawingSourceRef.current,
           drawingLayerRef_current_value_exists: !!drawingLayerRef.current,
         });
@@ -342,11 +342,11 @@ export default function GeoMapperClient() {
 
     const olMapVectorLayers = currentMap.getLayers().getArray()
       .filter(l => !l.get('isBaseLayer') && l !== drawingLayerRef.current) as (VectorLayerType<VectorSourceType<OLFeature<any>>> | TileLayer<TileWMS>)[];
-    
+
     olMapVectorLayers.forEach(olMapLayer => {
         currentMap.removeLayer(olMapLayer);
     });
-    
+
     layers.forEach(appLayer => {
       if (!currentMap.getLayers().getArray().includes(appLayer.olLayer)) {
         currentMap.addLayer(appLayer.olLayer);
@@ -359,10 +359,10 @@ export default function GeoMapperClient() {
       if (!currentMap.getLayers().getArray().includes(drawingLayerRef.current)) {
          currentMap.addLayer(drawingLayerRef.current);
       }
-      drawingLayerRef.current.setZIndex(100 + layers.length + 100); 
+      drawingLayerRef.current.setZIndex(100 + layers.length + 100);
     }
 
-  }, [layers]); 
+  }, [layers]);
 
   const processAndDisplayFeatures = useCallback((foundFeatures: OLFeature<any>[]) => {
     if (foundFeatures.length > 0) {
@@ -383,7 +383,7 @@ export default function GeoMapperClient() {
         if (allAttributes.length > 0) {
           setSelectedFeatureAttributes(allAttributes);
           setIsFeatureAttributesPanelVisible(true);
-          toast(`Panel de atributos abierto con ${allAttributes.length} entidad(es).`);
+          // toast(\`Panel de atributos abierto con \${allAttributes.length} entidad(es).\`); // Toast can be too noisy here
         } else {
           setSelectedFeatureAttributes(null);
           setIsFeatureAttributesPanelVisible(false);
@@ -404,7 +404,7 @@ export default function GeoMapperClient() {
 
     const clickedPixel = mapRef.current.getEventPixel(event.originalEvent);
     if (dragBoxInteractionRef.current && (event.originalEvent.type === 'pointermove' || event.originalEvent.type === 'mousemove')) {
-        return; 
+        return;
     }
 
     const featuresAtPixel: OLFeature<any>[] = [];
@@ -412,21 +412,21 @@ export default function GeoMapperClient() {
         if (featureOrLayer instanceof OLFeature) {
             featuresAtPixel.push(featureOrLayer);
         }
-        return false; 
-    }, { hitTolerance: 5, layerFilter: (layer) => !(layer instanceof TileLayer) }); 
+        return false;
+    }, { hitTolerance: 5, layerFilter: (layer) => !(layer instanceof TileLayer) });
 
-    setCurrentInspectedLayerName(null); 
+    setCurrentInspectedLayerName(null);
     processAndDisplayFeatures(featuresAtPixel);
 
   }, [isInspectModeActive, activeDrawTool, processAndDisplayFeatures]);
 
-  const handleDragBoxEnd = useCallback((event: any) => { 
+  const handleDragBoxEnd = useCallback((event: any) => {
     if (!mapRef.current || !isInspectModeActive) return;
     const extent = event.target.getGeometry().getExtent();
     const foundFeatures: OLFeature<any>[] = [];
 
     layers.forEach(layer => {
-      if (layer.visible && layer.olLayer && layer.olLayer instanceof VectorLayer) { 
+      if (layer.visible && layer.olLayer && layer.olLayer instanceof VectorLayer) {
         const source = layer.olLayer.getSource();
         if (source) {
           source.forEachFeatureIntersectingExtent(extent, (feature) => {
@@ -441,8 +441,8 @@ export default function GeoMapperClient() {
         if (feature instanceof OLFeature) foundFeatures.push(feature);
       });
     }
-    
-    setCurrentInspectedLayerName(null); 
+
+    setCurrentInspectedLayerName(null);
     processAndDisplayFeatures(foundFeatures);
   }, [layers, processAndDisplayFeatures, isInspectModeActive]);
 
@@ -454,33 +454,33 @@ export default function GeoMapperClient() {
     const cleanupInspectionInteractions = () => {
         if (mapDiv) mapDiv.classList.remove('cursor-crosshair');
         if (!currentMap) return;
-        
+
         currentMap.un('singleclick', handleMapClick);
-        
+
         if (dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
             const interactionsArray = currentMap.getInteractions().getArray();
             if (interactionsArray.includes(dragBoxInteractionRef.current)) {
                 currentMap.removeInteraction(dragBoxInteractionRef.current);
             }
-            dragBoxInteractionRef.current.dispose(); 
+            dragBoxInteractionRef.current.dispose();
             dragBoxInteractionRef.current = null;
         }
-        
+
         if (defaultDragZoomInteractionRef.current) {
              const dragZoomInteraction = currentMap.getInteractions().getArray().find(
                 (interaction) => interaction === defaultDragZoomInteractionRef.current
              );
-             if (dragZoomInteraction) { 
+             if (dragZoomInteraction) {
                 dragZoomInteraction.setActive(wasDragZoomActiveRef.current);
              }
-            defaultDragZoomInteractionRef.current = null; 
+            defaultDragZoomInteractionRef.current = null;
         }
     };
 
     if (isInspectModeActive && !activeDrawTool) {
         if (mapDiv) mapDiv.classList.add('cursor-crosshair');
-        if (!currentMap) return cleanupInspectionInteractions; 
+        if (!currentMap) return cleanupInspectionInteractions;
 
         currentMap.on('singleclick', handleMapClick);
 
@@ -489,24 +489,24 @@ export default function GeoMapperClient() {
                 if (interaction instanceof DragZoom) {
                     defaultDragZoomInteractionRef.current = interaction;
                     wasDragZoomActiveRef.current = interaction.getActive();
-                    interaction.setActive(false); 
+                    interaction.setActive(false);
                 }
             });
         }
-        
+
         if (!dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current = new DragBox({
-                condition: platformModifierKeyOnly, 
+                condition: platformModifierKeyOnly,
             });
             currentMap.addInteraction(dragBoxInteractionRef.current);
         }
-        
-        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); 
+
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
 
     } else {
         cleanupInspectionInteractions();
-        if (!isInspectModeActive) { 
+        if (!isInspectModeActive) {
              setSelectedFeatureAttributes(null);
              setIsFeatureAttributesPanelVisible(false);
              setCurrentInspectedLayerName(null);
@@ -528,17 +528,17 @@ export default function GeoMapperClient() {
           const extent: Extent = source.getExtent();
           if (extent && extent.every(isFinite) && (extent[2] - extent[0] > 0) && (extent[3] - extent[1] > 0)) {
             mapRef.current.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000, maxZoom: 18 });
-            toast(`Mostrando extensión de ${layer.name}.`);
+            toast(\`Mostrando extensión de \${layer.name}.\`);
           } else {
-            toast(`Capa "${layer.name}" podría estar vacía o tener una extensión inválida.`);
+            toast(\`Capa "\${layer.name}" podría estar vacía o tener una extensión inválida.\`);
           }
         } else {
-          toast(`Capa "${layer.name}" no contiene entidades.`);
+          toast(\`Capa "\${layer.name}" no contiene entidades.\`);
         }
       } else if (layer.olLayer instanceof TileLayer && layer.olLayer.getSource() instanceof TileWMS) {
-        toast(`Zoom a extensión no implementado para capa WMS "${layer.name}".`);
+        toast(\`Zoom a extensión no implementado para capa WMS "\${layer.name}".\`);
       } else {
-         toast(`Capa "${layer.name}" no es una capa vectorial con entidades para hacer zoom.`);
+         toast(\`Capa "\${layer.name}" no es una capa vectorial con entidades para hacer zoom.\`);
       }
     }
   }, [layers, toast]);
@@ -547,7 +547,7 @@ export default function GeoMapperClient() {
   const toggleLayersPanelCollapse = useCallback(() => setIsLayersPanelCollapsed(prev => !prev), []);
 
   const handlePanelMouseDown = useCallback((
-    e: React.MouseEvent<HTMLDivElement>, 
+    e: React.MouseEvent<HTMLDivElement>,
     panelType: 'tools' | 'layers'
   ) => {
     const panelRef = panelType === 'tools' ? toolsPanelRef : layersPanelRef;
@@ -556,9 +556,9 @@ export default function GeoMapperClient() {
     const position = panelType === 'tools' ? toolsPanelPosition : layersPanelPosition;
 
     if (!panelRef.current) return;
-    
+
     const targetElement = e.target as HTMLElement;
-    if (targetElement.closest('button')) { 
+    if (targetElement.closest('button')) {
         return;
     }
 
@@ -571,7 +571,7 @@ export default function GeoMapperClient() {
     };
     e.preventDefault();
   }, [toolsPanelPosition, layersPanelPosition]);
-  
+
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -638,41 +638,41 @@ export default function GeoMapperClient() {
         toast("Por favor, seleccione al menos una categoría OSM para descargar.");
         return;
     }
-    
+
     const geometry = lastDrawnFeature.getGeometry();
     if (!geometry || geometry.getType() !== 'Polygon') {
         toast("La descarga de datos OSM requiere un polígono dibujado. Por favor, dibuje un polígono.");
         return;
     }
-    
+
     setIsFetchingOSM(true);
     toast("Descargando datos de OpenStreetMap...");
 
     try {
       const extent3857 = geometry.getExtent();
       if (!extent3857 || extent3857.some(val => !isFinite(val)) || (extent3857[2] - extent3857[0] <= 0 && extent3857[2] !== extent3857[0]) || (extent3857[3] - extent3857[1] <= 0 && extent3857[3] !== extent3857[1])) {
-          throw new Error(`Área dibujada tiene una extensión inválida (inválida o puntos/líneas). Extent: ${extent3857.join(', ')}`);
+          throw new Error(\`Área dibujada tiene una extensión inválida (inválida o puntos/líneas). Extent: \${extent3857.join(', ')}\`);
       }
 
       const extent4326_transformed = transformExtent(extent3857, 'EPSG:3857', 'EPSG:4326');
       if (!extent4326_transformed || extent4326_transformed.some(val => !isFinite(val))) {
           throw new Error("Fallo al transformar área dibujada a coordenadas geográficas válidas.");
       }
-      
+
       const s_coord = parseFloat(extent4326_transformed[1].toFixed(6));
       const w_coord = parseFloat(extent4326_transformed[0].toFixed(6));
       const n_coord = parseFloat(extent4326_transformed[3].toFixed(6));
       const e_coord = parseFloat(extent4326_transformed[2].toFixed(6));
 
-      if (n_coord < s_coord) { 
-          throw new Error(`Error de Bounding Box (N < S): Norte ${n_coord} es menor que Sur ${s_coord}. BBox original: ${extent4326_transformed.join(', ')}`);
+      if (n_coord < s_coord) {
+          throw new Error(\`Error de Bounding Box (N < S): Norte \${n_coord} es menor que Sur \${s_coord}. BBox original: \${extent4326_transformed.join(', ')}\`);
       }
-      if (e_coord < w_coord && Math.abs(e_coord - w_coord) < 180) { 
-          throw new Error(`Error de Bounding Box (E < W): Este ${e_coord} es menor que Oeste ${w_coord} (sin cruzar anti-meridiano). BBox original: ${extent4326_transformed.join(', ')}`);
+      if (e_coord < w_coord && Math.abs(e_coord - w_coord) < 180) {
+          throw new Error(\`Error de Bounding Box (E < W): Este \${e_coord} es menor que Oeste \${w_coord} (sin cruzar anti-meridiano). BBox original: \${extent4326_transformed.join(', ')}\`);
       }
-            
-      const bboxStr = `${s_coord},${w_coord},${n_coord},${e_coord}`;
-      
+
+      const bboxStr = \`\${s_coord},\${w_coord},\${n_coord},\${e_coord}\`;
+
       let queryParts: string[] = [];
       const categoriesToFetch = osmCategoryConfig.filter(cat => selectedOSMCategoryIdsRef.current.includes(cat.id));
 
@@ -680,28 +680,28 @@ export default function GeoMapperClient() {
         queryParts.push(cat.overpassQueryFragment(bboxStr));
       });
 
-      const overpassQuery = `
+      const overpassQuery = \`
         [out:json][timeout:90];
         (
-          ${queryParts.join('\n          ')}
+          \${queryParts.join('\\n          ')}
         );
         out geom;
-      `;
-      
+      \`;
+
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
-        body: `data=${encodeURIComponent(overpassQuery)}`,
+        body: \`data=\${encodeURIComponent(overpassQuery)}\`,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
         console.error("Overpass API error details:", errorBody);
-        throw new Error(`Error Overpass API: ${response.status} ${response.statusText}`);
+        throw new Error(\`Error Overpass API: \${response.status} \${response.statusText}\`);
       }
 
       const osmData = await response.json();
-      const geojsonData = osmtogeojson(osmData) as any; 
+      const geojsonData = osmtogeojson(osmData) as any;
 
       let featuresAddedCount = 0;
       categoriesToFetch.forEach(category => {
@@ -722,15 +722,15 @@ export default function GeoMapperClient() {
               source: vectorSource,
               style: category.style
             });
-            const layerId = `osm-${category.id}-${Date.now()}`;
-            addLayer({ id: layerId, name: `${category.name} (${olFeatures.length})`, olLayer: vectorLayer, visible: true });
+            const layerId = \`osm-\${category.id}-\${Date.now()}\`;
+            addLayer({ id: layerId, name: \`\${category.name} (\${olFeatures.length})\`, olLayer: vectorLayer, visible: true });
             featuresAddedCount += olFeatures.length;
           }
         }
       });
 
       if (featuresAddedCount > 0) {
-        toast(`${featuresAddedCount} entidades OSM añadidas al mapa.`);
+        toast(\`\${featuresAddedCount} entidades OSM añadidas al mapa.\`);
       } else {
         toast("Ninguna entidad OSM coincidió con sus criterios en el área seleccionada.");
       }
@@ -746,28 +746,32 @@ export default function GeoMapperClient() {
 
   const toggleDrawingTool = useCallback((toolType: 'Polygon' | 'LineString' | 'Point') => {
     if (!mapRef.current || !drawingSourceRef.current) return;
-    if (isInspectModeActive) setIsInspectModeActive(false); 
 
-    if (drawInteractionRef.current) {
+    if (activeDrawTool === toolType) { // If the same tool is clicked, deactivate it
+      if (drawInteractionRef.current) {
+        mapRef.current.removeInteraction(drawInteractionRef.current);
+        drawInteractionRef.current.dispose();
+        drawInteractionRef.current = null;
+      }
+      setActiveDrawTool(null);
+      return; // Exit early
+    }
+
+    // If a different tool or no tool is active, set up the new one
+    if (drawInteractionRef.current) { // Remove any existing draw interaction
       mapRef.current.removeInteraction(drawInteractionRef.current);
-      drawInteractionRef.current.dispose(); 
+      drawInteractionRef.current.dispose();
       drawInteractionRef.current = null;
     }
 
-    if (activeDrawTool === toolType) {
-      setActiveDrawTool(null); 
-    } else {
-      const newDrawInteraction = new Draw({
-        source: drawingSourceRef.current,
-        type: toolType,
-      });
-      newDrawInteraction.on('drawend', () => {
-        // No longer automatically fetching OSM data here
-      });
-      mapRef.current.addInteraction(newDrawInteraction);
-      drawInteractionRef.current = newDrawInteraction;
-      setActiveDrawTool(toolType);
-    }
+    const newDrawInteraction = new Draw({
+      source: drawingSourceRef.current,
+      type: toolType,
+    });
+    mapRef.current.addInteraction(newDrawInteraction);
+    drawInteractionRef.current = newDrawInteraction;
+    setActiveDrawTool(toolType);
+    if (isInspectModeActive) setIsInspectModeActive(false); // Deactivate inspect mode if activating drawing
   }, [activeDrawTool, isInspectModeActive]);
 
   const stopDrawingTool = useCallback(() => {
@@ -808,7 +812,7 @@ export default function GeoMapperClient() {
 
   const handleDownloadOSMLayers = useCallback(async () => {
     setIsDownloading(true);
-    toast(`Procesando descarga: ${downloadFormat.toUpperCase()}...`);
+    toast(\`Procesando descarga: \${downloadFormat.toUpperCase()}...\`);
 
     const osmLayers = layers.filter(layer => layer.id.startsWith('osm-'));
     if (osmLayers.length === 0) {
@@ -835,9 +839,9 @@ export default function GeoMapperClient() {
         const geojsonString = geoJsonFormatter.writeFeatures(allFeatures, {
           dataProjection: 'EPSG:4326',
           featureProjection: 'EPSG:3857',
-          featureProperties: (feature: OLFeature<any>) => { 
+          featureProperties: (feature: OLFeature<any>) => {
             const props = { ...feature.getProperties() };
-            delete props[feature.getGeometryName() as string]; 
+            delete props[feature.getGeometryName() as string];
             return props;
           }
         });
@@ -864,15 +868,15 @@ export default function GeoMapperClient() {
         toast("Entidades OSM descargadas como KML.");
 
       } else if (downloadFormat === 'shp') {
-        const geoJsonDataForShpWrite: { [key: string]: any } = {}; 
-        const customTypesForShpWrite: { 
-            [key: string]: { 
-                points: any[], 
-                lines: any[], 
-                polygons: any[] 
-            } 
-        } = {}; 
-        
+        const geoJsonDataForShpWrite: { [key: string]: any } = {};
+        const customTypesForShpWrite: {
+            [key: string]: {
+                points: any[],
+                lines: any[],
+                polygons: any[]
+            }
+        } = {};
+
         let featuresFoundForShp = false;
 
         const sanitizeProperties = (olFeature: OLFeature<any>) => {
@@ -881,12 +885,12 @@ export default function GeoMapperClient() {
           const sanitizedProps: Record<string, any> = {};
           for (const key in props) {
             let sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
-            if(sanitizedKey.length === 0) sanitizedKey = `prop${Object.keys(sanitizedProps).length}`; 
+            if(sanitizedKey.length === 0) sanitizedKey = \`prop\${Object.keys(sanitizedProps).length}\`;
             let counter = 0;
             let finalKey = sanitizedKey;
             while(finalKey in sanitizedProps) {
                 counter++;
-                finalKey = `${sanitizedKey.substring(0, 10 - String(counter).length)}${counter}`;
+                finalKey = \`\${sanitizedKey.substring(0, 10 - String(counter).length)}\${counter}\`;
             }
             sanitizedProps[finalKey] = props[key];
           }
@@ -898,48 +902,51 @@ export default function GeoMapperClient() {
             if (olLayer instanceof VectorLayer) {
                 const source = olLayer.getSource();
                 const olFeatures = source ? source.getFeatures() : [];
-                
+
                 if (olFeatures.length > 0) {
                     featuresFoundForShp = true;
-                    const layerFileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\s+/g, '_');
-                    
-                    geoJsonDataForShpWrite[layerFileName] = geoJsonFormatter.writeFeaturesObject(olFeatures, {
-                    dataProjection: 'EPSG:4326',
-                    featureProjection: 'EPSG:3857',
-                    featureProperties: sanitizeProperties
+                    const layerFileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\\s+/g, '_');
+
+                    // Create a valid GeoJSON FeatureCollection for this layer
+                    const layerGeoJsonFeatures = olFeatures.map(olFeature => {
+                        const geoJsonFeature = geoJsonFormatter.writeFeatureObject(olFeature, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: 'EPSG:3857',
+                        });
+                        geoJsonFeature.properties = sanitizeProperties(olFeature);
+                        return geoJsonFeature;
                     });
+                    geoJsonDataForShpWrite[layerFileName] = {
+                        type: "FeatureCollection",
+                        features: layerGeoJsonFeatures
+                    };
+
 
                     customTypesForShpWrite[layerFileName] = { points: [], lines: [], polygons: [] };
 
-                    olFeatures.forEach(olFeature => {
-                    const geoJsonFeature = geoJsonFormatter.writeFeatureObject(olFeature, {
-                        dataProjection: 'EPSG:4326',
-                        featureProjection: 'EPSG:3857',
-                    });
-                    geoJsonFeature.properties = sanitizeProperties(olFeature);
-
-                    const geomType = olFeature.getGeometry()?.getType();
-                    if (geomType === 'Point' || geomType === 'MultiPoint') {
-                        customTypesForShpWrite[layerFileName].points.push(geoJsonFeature);
-                    } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
-                        customTypesForShpWrite[layerFileName].lines.push(geoJsonFeature);
-                    } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-                        customTypesForShpWrite[layerFileName].polygons.push(geoJsonFeature);
-                    }
+                    layerGeoJsonFeatures.forEach(geoJsonFeature => { // Iterate over already transformed and sanitized features
+                        const geomType = geoJsonFeature.geometry?.type;
+                        if (geomType === 'Point' || geomType === 'MultiPoint') {
+                            customTypesForShpWrite[layerFileName].points.push(geoJsonFeature);
+                        } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+                            customTypesForShpWrite[layerFileName].lines.push(geoJsonFeature);
+                        } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+                            customTypesForShpWrite[layerFileName].polygons.push(geoJsonFeature);
+                        }
                     });
                 }
             }
         });
 
         if (!featuresFoundForShp) throw new Error("No hay entidades en las capas OSM para exportar como Shapefile.");
-        
+
         const shpWriteOptions = {
-          folder: 'shapefiles', 
+          folder: 'shapefiles_osm', // Differentiate folder name
           types: customTypesForShpWrite
         };
-        
+
         const zipContentBase64 = await shpwrite.zip(geoJsonDataForShpWrite, shpWriteOptions);
-        
+
         const byteString = atob(zipContentBase64);
         const arrayBuffer = new ArrayBuffer(byteString.length);
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -980,24 +987,24 @@ export default function GeoMapperClient() {
     if (layerToShow.olLayer instanceof VectorLayer) {
         const source = layerToShow.olLayer.getSource();
         if (!source) {
-          toast(`La capa "${layerToShow.name}" no tiene fuente de datos.`);
+          toast(\`La capa "\${layerToShow.name}" no tiene fuente de datos.\`);
           setCurrentInspectedLayerName(null);
           return;
         }
         const features = source.getFeatures();
         if (features.length === 0) {
-          toast(`La capa "${layerToShow.name}" no contiene entidades.`);
+          toast(\`La capa "\${layerToShow.name}" no contiene entidades.\`);
           setCurrentInspectedLayerName(null);
           return;
         }
         setCurrentInspectedLayerName(layerToShow.name);
         processAndDisplayFeatures(features);
     } else {
-        toast(`La capa "${layerToShow.name}" no es una capa vectorial. La visualización de tabla solo está disponible para capas vectoriales.`);
+        toast(\`La capa "\${layerToShow.name}" no es una capa vectorial. La visualización de tabla solo está disponible para capas vectoriales.\`);
         setCurrentInspectedLayerName(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, processAndDisplayFeatures, toast]); 
+  }, [layers, processAndDisplayFeatures, toast]);
 
   const handleFetchGeoServerLayers = useCallback(async () => {
     if (!geoServerUrlInput.trim()) {
@@ -1011,38 +1018,42 @@ export default function GeoMapperClient() {
     try {
       let url = geoServerUrlInput.trim();
       if (!url.toLowerCase().startsWith('http://') && !url.toLowerCase().startsWith('https://')) {
-        url = 'http://' + url; // Default to http for local IPs if no scheme
+        url = 'http://' + url;
       }
       if (url.endsWith('/')) {
         url = url.slice(0, -1);
       }
-      // Remove /web or /web/ if present, as GetCapabilities is usually at /geoserver/wms
       if (url.toLowerCase().endsWith('/web')) {
         url = url.substring(0, url.length - '/web'.length);
       } else if (url.toLowerCase().endsWith('/web/')) {
          url = url.substring(0, url.length - '/web/'.length);
       }
 
-      const capabilitiesUrl = `${url}/wms?service=WMS&version=1.3.0&request=GetCapabilities`;
-      
-      const response = await fetch(capabilitiesUrl);
+      const capabilitiesUrl = \`\${url}/wms?service=WMS&version=1.3.0&request=GetCapabilities\`;
+      const proxyUrl = \`/api/geoserver-proxy?url=\${encodeURIComponent(capabilitiesUrl)}\`;
+
+      const response = await fetch(proxyUrl); // Use the proxy
+
       if (!response.ok) {
-        throw new Error(`Error al obtener capacidades de GeoServer: ${response.status} ${response.statusText}`);
+         const errorData = await response.json().catch(() => ({ error: "Error desconocido del proxy", details: response.statusText }));
+         console.error("Error desde el proxy de GeoServer:", errorData);
+         throw new Error(errorData.error || \`Error al obtener capacidades vía proxy: \${response.status} \${response.statusText}\`);
       }
+
       const xmlText = await response.text();
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
       const errorNode = xmlDoc.querySelector("ServiceExceptionReport ServiceException");
       if (errorNode) {
-        throw new Error(`Error de GeoServer: ${errorNode.textContent || 'Error desconocido en la respuesta XML.'}`);
+        throw new Error(\`Error de GeoServer: \${errorNode.textContent || 'Error desconocido en la respuesta XML.'}\`);
       }
-      
+
       const discovered: GeoServerDiscoveredLayer[] = [];
-      const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer"); 
+      const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer");
 
       if (layerNodes.length === 0) {
-           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer"); 
+           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer");
             topLayerNodes.forEach(node => {
                  const nameElement = node.querySelector("Name");
                 const titleElement = node.querySelector("Title");
@@ -1061,7 +1072,7 @@ export default function GeoMapperClient() {
             if (nameElement && nameElement.textContent) {
               discovered.push({
                 name: nameElement.textContent,
-                title: titleElement?.textContent || nameElement.textContent, 
+                title: titleElement?.textContent || nameElement.textContent,
                 addedToMap: false,
               });
             }
@@ -1073,7 +1084,7 @@ export default function GeoMapperClient() {
         toast("No se encontraron capas publicadas en el GeoServer o la estructura XML no es la esperada.");
       } else {
         setGeoServerDiscoveredLayers(discovered);
-        toast(`${discovered.length} capas encontradas en GeoServer.`);
+        toast(\`\${discovered.length} capas encontradas en GeoServer.\`);
       }
 
     } catch (error: any) {
@@ -1103,13 +1114,11 @@ export default function GeoMapperClient() {
     } else if (geoserverBaseWmsUrl.toLowerCase().endsWith('/web/')) {
          geoserverBaseWmsUrl = geoserverBaseWmsUrl.substring(0, geoserverBaseWmsUrl.length - '/web/'.length);
     }
-    // Ensure the URL points to the WMS endpoint correctly
+
     if (!geoserverBaseWmsUrl.toLowerCase().endsWith('/wms')) {
-        if (geoserverBaseWmsUrl.toLowerCase().includes('/geoserver')) { // e.g. http://host/geoserver
+        if (geoserverBaseWmsUrl.toLowerCase().includes('/geoserver')) {
              geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
-        } else { // e.g. http://host (assuming it's a root proxy to geoserver/wms)
-            // This case is harder to auto-correct, assume user provides correct WMS base or full WMS GetMap URL part
-            // For now, let's append /wms if not present and not a full geoserver path
+        } else {
              geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
         }
     }
@@ -1119,15 +1128,15 @@ export default function GeoMapperClient() {
         url: geoserverBaseWmsUrl,
         params: { 'LAYERS': layerName, 'TILED': true },
         serverType: 'geoserver',
-        transition: 0, 
+        transition: 0,
     });
 
     const newOlLayer = new TileLayer({
         source: wmsSource,
-        properties: { 'title': layerTitle } 
+        properties: { 'title': layerTitle }
     });
-    
-    const mapLayerId = `geoserver-${layerName}-${Date.now()}`;
+
+    const mapLayerId = \`geoserver-\${layerName}-\${Date.now()}\`;
     const newMapLayer: MapLayer = {
       id: mapLayerId,
       name: layerTitle || layerName,
@@ -1135,27 +1144,27 @@ export default function GeoMapperClient() {
       visible: true,
       isGeoServerLayer: true,
     };
-    
+
     addLayer(newMapLayer);
-    setGeoServerDiscoveredLayers(prev => 
+    setGeoServerDiscoveredLayers(prev =>
         prev.map(l => l.name === layerName ? { ...l, addedToMap: true } : l)
     );
-    toast(`Capa "${layerTitle || layerName}" añadida al mapa.`);
+    toast(\`Capa "\${layerTitle || layerName}" añadida al mapa.\`);
 
   }, [geoServerUrlInput, addLayer, toast]);
 
 
-  const layersPanelRenderConfig = { 
+  const layersPanelRenderConfig = {
     baseLayers: true,
     layers: true,
-    geoServer: true, 
+    geoServer: true,
     inspector: true,
   };
-  const toolsPanelRenderConfig = { 
-    inspector: false, 
+  const toolsPanelRenderConfig = {
+    inspector: false,
     osmCapabilities: true,
     drawing: true,
-    geoServer: false, 
+    geoServer: false,
   };
 
   return (
@@ -1183,9 +1192,9 @@ export default function GeoMapperClient() {
           ref={layersPanelRef}
           className="absolute bg-gray-800/60 backdrop-blur-md rounded-lg shadow-xl flex flex-col text-white overflow-hidden z-30"
           style={{
-             width: `${PANEL_WIDTH}px`,
-             top: `${layersPanelPosition.y}px`,
-             left: `${layersPanelPosition.x}px`,
+             width: \`\${PANEL_WIDTH}px\`,
+             top: \`\${layersPanelPosition.y}px\`,
+             left: \`\${layersPanelPosition.x}px\`,
           }}
         >
           <div
@@ -1210,34 +1219,34 @@ export default function GeoMapperClient() {
                   onToggleLayerVisibility={toggleLayerVisibility}
                   onRemoveLayer={removeLayer}
                   onZoomToLayerExtent={zoomToLayerExtent}
-                  onShowLayerTable={handleShowLayerTable} 
+                  onShowLayerTable={handleShowLayerTable}
                   onAddLayer={addLayer}
-                  isInspectModeActive={isInspectModeActive} 
+                  isInspectModeActive={isInspectModeActive}
                   onToggleInspectMode={() => {
                     const newInspectModeState = !isInspectModeActive;
                     setIsInspectModeActive(newInspectModeState);
                     if (activeDrawTool && newInspectModeState) {
                        stopDrawingTool(); // Stop drawing if activating inspector
                     }
-                    if (!newInspectModeState) { 
+                    if (!newInspectModeState) {
                       setIsFeatureAttributesPanelVisible(false);
                       setSelectedFeatureAttributes(null);
                       setCurrentInspectedLayerName(null);
                     }
                   }}
-                  activeDrawTool={null} 
-                  onToggleDrawingTool={() => {}} 
-                  onStopDrawingTool={() => {}} 
-                  onClearDrawnFeatures={() => {}} 
-                  onSaveDrawnFeaturesAsKML={() => {}} 
-                  isFetchingOSM={false} 
-                  onFetchOSMDataTrigger={() => {}} 
-                  osmCategoriesForSelection={[]} 
-                  selectedOSMCategoryIds={[]} 
-                  onSelectedOSMCategoriesChange={() => {}} 
-                  downloadFormat={downloadFormat} 
-                  onDownloadFormatChange={() => {}} 
-                  onDownloadOSMLayers={() => {}} 
+                  activeDrawTool={null}
+                  onToggleDrawingTool={() => {}}
+                  onStopDrawingTool={() => {}}
+                  onClearDrawnFeatures={() => {}}
+                  onSaveDrawnFeaturesAsKML={() => {}}
+                  isFetchingOSM={false}
+                  onFetchOSMDataTrigger={() => {}}
+                  osmCategoriesForSelection={[]}
+                  selectedOSMCategoryIds={[]}
+                  onSelectedOSMCategoriesChange={() => {}}
+                  downloadFormat={downloadFormat}
+                  onDownloadFormatChange={() => {}}
+                  onDownloadOSMLayers={() => {}}
                   isDownloading={false}
                   geoServerUrlInput={geoServerUrlInput}
                   onGeoServerUrlChange={setGeoServerUrlInput}
@@ -1249,15 +1258,15 @@ export default function GeoMapperClient() {
             </div>
           )}
         </div>
-        
+
         {/* Tools Panel (Right) */}
         <div
           ref={toolsPanelRef}
           className="absolute bg-gray-800/60 backdrop-blur-md rounded-lg shadow-xl flex flex-col text-white overflow-hidden z-30"
           style={{
-             width: `${PANEL_WIDTH}px`,
-             top: `${toolsPanelPosition.y}px`,
-             left: `${toolsPanelPosition.x}px`,
+             width: \`\${PANEL_WIDTH}px\`,
+             top: \`\${toolsPanelPosition.y}px\`,
+             left: \`\${toolsPanelPosition.x}px\`,
           }}
         >
           <div
@@ -1276,12 +1285,11 @@ export default function GeoMapperClient() {
               <MapControls
                   renderConfig={toolsPanelRenderConfig}
                   onAddLayer={addLayer}
-                  isInspectModeActive={false} 
-                  onToggleInspectMode={() => {}} 
+                  isInspectModeActive={false}
+                  onToggleInspectMode={() => {}}
                   activeDrawTool={activeDrawTool}
                   onToggleDrawingTool={(toolType) => {
-                    if (isInspectModeActive) setIsInspectModeActive(false); // Deactivate inspector if activating drawing
-                    toggleDrawingTool(toolType);
+                     toggleDrawingTool(toolType);
                   }}
                   onStopDrawingTool={stopDrawingTool}
                   onClearDrawnFeatures={clearDrawnFeatures}
@@ -1298,11 +1306,11 @@ export default function GeoMapperClient() {
                   availableBaseLayers={[]}
                   activeBaseLayerId={""}
                   onChangeBaseLayer={() => {}}
-                  layers={[]} 
+                  layers={[]}
                   onToggleLayerVisibility={() => {}}
                   onRemoveLayer={() => {}}
                   onZoomToLayerExtent={() => {}}
-                  onShowLayerTable={() => {}} 
+                  onShowLayerTable={() => {}}
                   geoServerUrlInput=""
                   onGeoServerUrlChange={() => {}}
                   onFetchGeoServerLayers={() => {}}
@@ -1318,4 +1326,3 @@ export default function GeoMapperClient() {
     </div>
   );
 }
-
