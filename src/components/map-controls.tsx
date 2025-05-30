@@ -397,7 +397,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                   className={`flex-1 text-xs h-8 ${
                     isInspectModeActive 
                       ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
-                      : 'border border-primary text-primary bg-transparent hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary'
+                      : 'border border-white/30 text-white/90 bg-black/20 hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary'
                   }`}
                   disabled={!!activeDrawTool} 
                   title="Activar/Desactivar modo inspector"
