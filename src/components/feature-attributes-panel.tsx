@@ -40,7 +40,6 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
     const targetElement = e.target as HTMLElement;
-    // Exclude buttons or other specific interactive elements within the header if necessary
     if (targetElement.closest('button')) {
         return;
     }
@@ -150,37 +149,39 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
           <span className="sr-only">Cerrar</span>
         </Button>
       </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
-        <ScrollArea className="flex-grow h-0 w-full p-3"> {/* Padding moved here, ScrollArea for vertical scroll */}
+      <CardContent className="p-3 flex-grow flex flex-col overflow-hidden">
+        <ScrollArea className="flex-grow h-0 w-full"> 
           {allKeys.length > 0 && currentVisibleFeatures.length > 0 ? (
-            <Table className="min-w-full"> {/* This Table component from ShadCN has internal overflow-auto div */}
-              <TableHeader>
-                <TableRow className="bg-gray-800/50 hover:bg-gray-800/70">
-                  {allKeys.map(key => (
-                    <TableHead 
-                      key={key} 
-                      className="px-3 py-2 text-xs font-medium text-gray-300 whitespace-nowrap sticky top-0 bg-gray-700/90 backdrop-blur-sm z-10"
-                    >
-                      {key}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentVisibleFeatures.map((attrs, idx) => (
-                  <TableRow key={`${currentPage}-${startIndex + idx}`} className="hover:bg-gray-700/30">
+            <div className="overflow-x-auto">
+              <Table className="min-w-full"> 
+                <TableHeader>
+                  <TableRow className="bg-gray-800/50 hover:bg-gray-800/70">
                     {allKeys.map(key => (
-                      <TableCell
-                        key={key}
-                        className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
+                      <TableHead 
+                        key={key} 
+                        className="px-3 py-2 text-xs font-medium text-gray-300 whitespace-nowrap sticky top-0 bg-gray-700/90 backdrop-blur-sm z-10"
                       >
-                        {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
-                      </TableCell>
+                        {key}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {currentVisibleFeatures.map((attrs, idx) => (
+                    <TableRow key={`${currentPage}-${startIndex + idx}`} className="hover:bg-gray-700/30">
+                      {allKeys.map(key => (
+                        <TableCell
+                          key={key}
+                          className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
+                        >
+                          {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="p-4 text-sm text-center text-gray-400">
               {featuresAttributes.length > 0 ? 'No hay atributos para mostrar en esta página.' : 'No hay atributos para mostrar.'}
@@ -188,7 +189,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
           )}
         </ScrollArea>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between p-2 border-t border-gray-700/50 bg-gray-800/50">
+          <div className="flex items-center justify-between p-2 border-t border-gray-700/50 bg-gray-800/50 mt-auto"> {/* mt-auto para empujar al fondo */}
             <Button
               variant="outline"
               size="sm"
@@ -220,4 +221,3 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
-
