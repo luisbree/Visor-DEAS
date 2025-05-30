@@ -39,6 +39,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const handleMouseDownOnHeader = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!panelRef.current) return;
     const targetElement = e.target as HTMLElement;
+    // Prevent drag if clicking on a button within the header
     if (targetElement.closest('button')) {
         return;
     }
@@ -62,6 +63,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       let newX = dragStartRef.current.panelX + dx;
       let newY = dragStartRef.current.panelY + dy;
       
+      // Ensure newX and newY are numbers before setting position
       if (!isNaN(newX) && !isNaN(newY)) {
         setPosition({ x: newX, y: newY });
       }
@@ -95,9 +97,10 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentVisibleFeatures = featuresAttributes.slice(startIndex, endIndex);
 
+  // Determine all unique keys from all features for table headers
   const allKeys = Array.from(
     new Set(featuresAttributes.flatMap(attrs => Object.keys(attrs)))
-  ).sort();
+  ).sort(); // Sort keys alphabetically for consistent column order
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
@@ -110,7 +113,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="absolute bg-card text-card-foreground shadow-2xl rounded-lg border border-gray-700 flex flex-col"
+      className="absolute bg-gray-800/60 backdrop-blur-md text-white shadow-xl rounded-lg border border-gray-700 flex flex-col"
       style={{
         top: `${position.y}px`,
         left: `${position.x}px`,
@@ -120,14 +123,16 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
         minHeight: '250px', // Increased min height
         maxWidth: '90vw',
         maxHeight: '80vh',
-        zIndex: 40,
-        resize: 'both',
-        overflow: 'hidden',
+        zIndex: 40, // Ensure it's above map controls but potentially below critical dialogs
+        resize: 'both', // Allows resizing from bottom-right corner
+        overflow: 'hidden', // Important for resize to work and contain children
       }}
+      // Capture mouse up on the panel itself to update size state after resize
       onMouseUpCapture={() => {
         if (panelRef.current) {
             const newWidth = panelRef.current.offsetWidth;
             const newHeight = panelRef.current.offsetHeight;
+            // Only update state if size actually changed to avoid unnecessary re-renders
             if (newWidth !== size.width || newHeight !== size.height) {
                  setSize({ width: newWidth, height: newHeight });
             }
@@ -149,7 +154,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
       </CardHeader>
       <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
         <ScrollArea className="flex-grow h-0 w-full"> {/* Adjusted for flex layout */}
-          <div className="p-3">
+          <div className="p-3"> {/* Added padding around the table for aesthetics */}
           {allKeys.length > 0 && currentVisibleFeatures.length > 0 ? (
             <Table className="min-w-full">
               <TableHeader>
@@ -167,7 +172,7 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
                     {allKeys.map(key => (
                       <TableCell
                         key={key}
-                        className="px-3 py-1.5 text-xs text-black dark:text-slate-200 border-b border-gray-700/50 whitespace-normal break-words"
+                        className="px-3 py-1.5 text-xs text-slate-200 border-b border-gray-700/50 whitespace-normal break-words" // text-slate-200 for light text on dark panel
                       >
                         {String(attrs[key] === null || attrs[key] === undefined ? '' : attrs[key])}
                       </TableCell>
@@ -216,3 +221,5 @@ const FeatureAttributesPanel: React.FC<FeatureAttributesPanelProps> = ({
 };
 
 export default FeatureAttributesPanel;
+
+    
