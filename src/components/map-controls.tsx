@@ -21,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 // import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
-  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon
+  Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2
 } from 'lucide-react';
 import {
   Accordion,
@@ -67,6 +67,7 @@ interface MapControlsProps {
   onToggleLayerVisibility?: (layerId: string) => void;
   onRemoveLayer?: (layerId: string) => void;
   onZoomToLayerExtent?: (layerId: string) => void;
+  onShowLayerTable?: (layerId: string) => void; // Nueva prop
   
   // Inspector Props (passed to layers panel for the button)
   isInspectModeActive?: boolean;
@@ -115,6 +116,7 @@ const MapControls: React.FC<MapControlsProps> = ({
   onToggleLayerVisibility = () => {},
   onRemoveLayer = () => {},
   onZoomToLayerExtent = () => {},
+  onShowLayerTable = () => {}, // Inicializar nueva prop
 
   isInspectModeActive = false,
   onToggleInspectMode = () => {},
@@ -454,6 +456,16 @@ const MapControls: React.FC<MapControlsProps> = ({
                               title="Ir a la extensión de la capa"
                             >
                               <ZoomIn className="h-3.5 w-3.5" />
+                            </Button>
+                             <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onShowLayerTable(layer.id)}
+                              className="h-6 w-6 text-white hover:bg-gray-600/80 p-0"
+                              aria-label={`Ver tabla de atributos de ${layer.name}`}
+                              title="Ver tabla de atributos de la capa"
+                            >
+                              <ListFilter className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"

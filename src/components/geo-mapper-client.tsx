@@ -897,6 +897,26 @@ export default function GeoMapperClient() {
     }
   }, []);
 
+  const handleShowLayerTable = useCallback((layerId: string) => {
+    const layerToShow = layers.find(l => l.id === layerId);
+    if (!layerToShow || !layerToShow.olLayer) {
+      toast({ title: "Error", description: "Capa no encontrada o inválida.", variant: "destructive" });
+      return;
+    }
+    const source = layerToShow.olLayer.getSource();
+    if (!source) {
+      toast({ title: "Capa Vacía", description: `La capa "${layerToShow.name}" no tiene fuente de datos.`, variant: "destructive" });
+      return;
+    }
+    const features = source.getFeatures();
+    if (features.length === 0) {
+      toast({ title: "Capa Vacía", description: `La capa "${layerToShow.name}" no contiene entidades.`, variant: "destructive" });
+      return;
+    }
+    processAndDisplayFeatures(features);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers, toast, processAndDisplayFeatures]); // processAndDisplayFeatures debe estar en las dependencias
+
   const layersPanelRenderConfig = { 
     baseLayers: true,
     layers: true,
@@ -958,6 +978,7 @@ export default function GeoMapperClient() {
                   onToggleLayerVisibility={toggleLayerVisibility}
                   onRemoveLayer={removeLayer}
                   onZoomToLayerExtent={zoomToLayerExtent}
+                  onShowLayerTable={handleShowLayerTable} // Pasar la nueva función
                   onAddLayer={addLayer}
                   isInspectModeActive={isInspectModeActive} 
                   onToggleInspectMode={() => {
@@ -1036,6 +1057,7 @@ export default function GeoMapperClient() {
                   onToggleLayerVisibility={() => {}}
                   onRemoveLayer={() => {}}
                   onZoomToLayerExtent={() => {}}
+                  onShowLayerTable={() => {}} // No se usa aquí, pero la prop existe
               />
             </div>
           )}
