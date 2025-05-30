@@ -6,7 +6,7 @@ import { type Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
-import { ChevronDown, ChevronUp, MapPin, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Loader2, GripVertical } from 'lucide-react';
 import Draw from 'ol/interaction/Draw';
 import DragBox from 'ol/interaction/DragBox';
 import DragZoom from 'ol/interaction/DragZoom';
@@ -394,6 +394,7 @@ export default function GeoMapperClient() {
         setSelectedFeatureAttributes(null);
         setIsFeatureAttributesPanelVisible(false);
         setCurrentInspectedLayerName(null);
+        toast("Ninguna entidad encontrada para inspeccionar.");
       }
   }, [toast]);
 
@@ -408,14 +409,11 @@ export default function GeoMapperClient() {
 
     const featuresAtPixel: OLFeature<any>[] = [];
     mapRef.current.forEachFeatureAtPixel(clickedPixel, (featureOrLayer) => {
-        // For vector layers, feature is an OLFeature.
-        // For WMS layers (like GeoServer ones), this might return the layer itself if 'getFeatureInfoUrl' is hit.
-        // We are primarily interested in client-side vector features here.
         if (featureOrLayer instanceof OLFeature) {
             featuresAtPixel.push(featureOrLayer);
         }
         return false; 
-    }, { hitTolerance: 5, layerFilter: (layer) => !(layer instanceof TileLayer) }); // Exclude TileLayers (like base maps or WMS) from pixel inspection
+    }, { hitTolerance: 5, layerFilter: (layer) => !(layer instanceof TileLayer) }); 
 
     setCurrentInspectedLayerName(null); 
     processAndDisplayFeatures(featuresAtPixel);
@@ -428,7 +426,7 @@ export default function GeoMapperClient() {
     const foundFeatures: OLFeature<any>[] = [];
 
     layers.forEach(layer => {
-      if (layer.visible && layer.olLayer && layer.olLayer instanceof VectorLayer) { // Only inspect vector layers
+      if (layer.visible && layer.olLayer && layer.olLayer instanceof VectorLayer) { 
         const source = layer.olLayer.getSource();
         if (source) {
           source.forEachFeatureIntersectingExtent(extent, (feature) => {
@@ -538,8 +536,6 @@ export default function GeoMapperClient() {
           toast(`Capa "${layer.name}" no contiene entidades.`);
         }
       } else if (layer.olLayer instanceof TileLayer && layer.olLayer.getSource() instanceof TileWMS) {
-        // For WMS layers, extent might not be readily available or might be the declared extent
-        // For now, we just toast. A proper implementation might fetch GetCapabilities again for this layer's BoundingBox
         toast(`Zoom a extensión no implementado para capa WMS "${layer.name}".`);
       } else {
          toast(`Capa "${layer.name}" no es una capa vectorial con entidades para hacer zoom.`);
@@ -977,6 +973,7 @@ export default function GeoMapperClient() {
     const layerToShow = layers.find(l => l.id === layerId);
     if (!layerToShow || !layerToShow.olLayer) {
       toast("Error: Capa no encontrada o inválida.");
+      setCurrentInspectedLayerName(null);
       return;
     }
 
@@ -1014,11 +1011,18 @@ export default function GeoMapperClient() {
     try {
       let url = geoServerUrlInput.trim();
       if (!url.toLowerCase().startsWith('http://') && !url.toLowerCase().startsWith('https://')) {
-        url = 'http://' + url;
+        url = 'http://' + url; // Default to http for local IPs if no scheme
       }
       if (url.endsWith('/')) {
         url = url.slice(0, -1);
       }
+      // Remove /web or /web/ if present, as GetCapabilities is usually at /geoserver/wms
+      if (url.toLowerCase().endsWith('/web')) {
+        url = url.substring(0, url.length - '/web'.length);
+      } else if (url.toLowerCase().endsWith('/web/')) {
+         url = url.substring(0, url.length - '/web/'.length);
+      }
+
       const capabilitiesUrl = `${url}/wms?service=WMS&version=1.3.0&request=GetCapabilities`;
       
       const response = await fetch(capabilitiesUrl);
@@ -1035,12 +1039,10 @@ export default function GeoMapperClient() {
       }
       
       const discovered: GeoServerDiscoveredLayer[] = [];
-      // Query for layers that are direct children of the main Layer element, or nested ones.
-      // This captures top-level layers and layers within groups.
-      const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer"); // Adjusted selector for different XML structures
+      const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer"); 
 
       if (layerNodes.length === 0) {
-           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer"); // Try direct children if nested not found
+           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer"); 
             topLayerNodes.forEach(node => {
                  const nameElement = node.querySelector("Name");
                 const titleElement = node.querySelector("Title");
@@ -1056,11 +1058,10 @@ export default function GeoMapperClient() {
           layerNodes.forEach(node => {
             const nameElement = node.querySelector("Name");
             const titleElement = node.querySelector("Title");
-            // Only add layers that have a Name, as this is required for WMS requests
             if (nameElement && nameElement.textContent) {
               discovered.push({
                 name: nameElement.textContent,
-                title: titleElement?.textContent || nameElement.textContent, // Fallback to name if title is missing
+                title: titleElement?.textContent || nameElement.textContent, 
                 addedToMap: false,
               });
             }
@@ -1091,15 +1092,25 @@ export default function GeoMapperClient() {
     }
 
     let geoserverBaseWmsUrl = geoServerUrlInput.trim();
+     if (!geoserverBaseWmsUrl.toLowerCase().startsWith('http://') && !geoserverBaseWmsUrl.toLowerCase().startsWith('https://')) {
+        geoserverBaseWmsUrl = 'http://' + geoserverBaseWmsUrl;
+    }
     if (geoserverBaseWmsUrl.endsWith('/')) {
         geoserverBaseWmsUrl = geoserverBaseWmsUrl.slice(0, -1);
     }
+    if (geoserverBaseWmsUrl.toLowerCase().endsWith('/web')) {
+        geoserverBaseWmsUrl = geoserverBaseWmsUrl.substring(0, geoserverBaseWmsUrl.length - '/web'.length);
+    } else if (geoserverBaseWmsUrl.toLowerCase().endsWith('/web/')) {
+         geoserverBaseWmsUrl = geoserverBaseWmsUrl.substring(0, geoserverBaseWmsUrl.length - '/web/'.length);
+    }
+    // Ensure the URL points to the WMS endpoint correctly
     if (!geoserverBaseWmsUrl.toLowerCase().endsWith('/wms')) {
-        // Attempt to ensure it points to the WMS endpoint or a base path for WMS
-        if (!geoserverBaseWmsUrl.includes('/geoserver/')) { // Heuristic
-            geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
-        } else if (!geoserverBaseWmsUrl.endsWith('/wms')){
-            geoserverBaseWmsUrl = geoserverBaseWmsUrl.substring(0, geoserverBaseWmsUrl.lastIndexOf('/')+1) + 'wms';
+        if (geoserverBaseWmsUrl.toLowerCase().includes('/geoserver')) { // e.g. http://host/geoserver
+             geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
+        } else { // e.g. http://host (assuming it's a root proxy to geoserver/wms)
+            // This case is harder to auto-correct, assume user provides correct WMS base or full WMS GetMap URL part
+            // For now, let's append /wms if not present and not a full geoserver path
+             geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
         }
     }
 
@@ -1108,12 +1119,12 @@ export default function GeoMapperClient() {
         url: geoserverBaseWmsUrl,
         params: { 'LAYERS': layerName, 'TILED': true },
         serverType: 'geoserver',
-        transition: 0, // Optional: disable transition effects for smoother loading
+        transition: 0, 
     });
 
     const newOlLayer = new TileLayer({
         source: wmsSource,
-        properties: { 'title': layerTitle } // Store title for display if needed
+        properties: { 'title': layerTitle } 
     });
     
     const mapLayerId = `geoserver-${layerName}-${Date.now()}`;
@@ -1137,14 +1148,14 @@ export default function GeoMapperClient() {
   const layersPanelRenderConfig = { 
     baseLayers: true,
     layers: true,
-    geoServer: true, // Enable GeoServer section in layers panel
+    geoServer: true, 
     inspector: true,
   };
   const toolsPanelRenderConfig = { 
     inspector: false, 
     osmCapabilities: true,
     drawing: true,
-    geoServer: false, // Disable GeoServer section in tools panel (it's in layers now)
+    geoServer: false, 
   };
 
   return (
@@ -1205,6 +1216,9 @@ export default function GeoMapperClient() {
                   onToggleInspectMode={() => {
                     const newInspectModeState = !isInspectModeActive;
                     setIsInspectModeActive(newInspectModeState);
+                    if (activeDrawTool && newInspectModeState) {
+                       stopDrawingTool(); // Stop drawing if activating inspector
+                    }
                     if (!newInspectModeState) { 
                       setIsFeatureAttributesPanelVisible(false);
                       setSelectedFeatureAttributes(null);
@@ -1265,7 +1279,10 @@ export default function GeoMapperClient() {
                   isInspectModeActive={false} 
                   onToggleInspectMode={() => {}} 
                   activeDrawTool={activeDrawTool}
-                  onToggleDrawingTool={toggleDrawingTool}
+                  onToggleDrawingTool={(toolType) => {
+                    if (isInspectModeActive) setIsInspectModeActive(false); // Deactivate inspector if activating drawing
+                    toggleDrawingTool(toolType);
+                  }}
                   onStopDrawingTool={stopDrawingTool}
                   onClearDrawnFeatures={clearDrawnFeatures}
                   onSaveDrawnFeaturesAsKML={saveDrawnFeaturesAsKML}
@@ -1286,7 +1303,6 @@ export default function GeoMapperClient() {
                   onRemoveLayer={() => {}}
                   onZoomToLayerExtent={() => {}}
                   onShowLayerTable={() => {}} 
-                  // Pass empty GeoServer props as this panel won't use them
                   geoServerUrlInput=""
                   onGeoServerUrlChange={() => {}}
                   onFetchGeoServerLayers={() => {}}
