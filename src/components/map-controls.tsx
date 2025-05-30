@@ -17,8 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-// Card components are no longer needed here as Inspector section is removed
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
   Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2
@@ -37,13 +35,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { MapLayer } from '@/components/geo-mapper-client';
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 
 interface RenderConfig {
   baseLayers?: boolean;
   layers?: boolean;
-  inspector?: boolean; // For the button in layers panel
+  inspector?: boolean; 
   osmCapabilities?: boolean;
   drawing?: boolean;
 }
@@ -57,31 +55,25 @@ interface MapControlsProps {
   renderConfig: RenderConfig;
   onAddLayer: (layer: MapLayer) => void;
   
-  // Base Layer Props (only for layers panel)
   availableBaseLayers?: BaseLayerOptionForSelect[];
   activeBaseLayerId?: string;
   onChangeBaseLayer?: (id: string) => void;
 
-  // Layer Management Props (only for layers panel)
   layers?: MapLayer[]; 
   onToggleLayerVisibility?: (layerId: string) => void;
   onRemoveLayer?: (layerId: string) => void;
   onZoomToLayerExtent?: (layerId: string) => void;
-  onShowLayerTable?: (layerId: string) => void; // Nueva prop
+  onShowLayerTable?: (layerId: string) => void; 
   
-  // Inspector Props (passed to layers panel for the button)
   isInspectModeActive?: boolean;
   onToggleInspectMode?: () => void;
-  // selectedFeatureAttributes and onClearSelectedFeature are removed as MapControls no longer displays them
 
-  // Drawing Props (only for tools panel, drawing tools themselves)
   activeDrawTool?: string | null;
   onToggleDrawingTool?: (toolType: 'Polygon' | 'LineString' | 'Point') => void;
   onStopDrawingTool?: () => void;
   onClearDrawnFeatures?: () => void;
   onSaveDrawnFeaturesAsKML?: () => void;
   
-  // OSM Functionality Props (for the new consolidated OSM section in tools panel)
   isFetchingOSM?: boolean;
   onFetchOSMDataTrigger?: () => void;
   osmCategoriesForSelection?: { id: string; name: string; }[];
@@ -116,12 +108,10 @@ const MapControls: React.FC<MapControlsProps> = ({
   onToggleLayerVisibility = () => {},
   onRemoveLayer = () => {},
   onZoomToLayerExtent = () => {},
-  onShowLayerTable = () => {}, // Inicializar nueva prop
+  onShowLayerTable = () => {}, 
 
   isInspectModeActive = false,
   onToggleInspectMode = () => {},
-  // selectedFeatureAttributes is no longer used by this component
-  // onClearSelectedFeature is no longer used by this component
 
   activeDrawTool = null,
   onToggleDrawingTool = () => {},
@@ -143,7 +133,6 @@ const MapControls: React.FC<MapControlsProps> = ({
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [selectedMultipleFiles, setSelectedMultipleFiles] = React.useState<FileList | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const uniqueIdPrefix = useId();
 
@@ -155,13 +144,6 @@ const MapControls: React.FC<MapControlsProps> = ({
     if (renderConfig.layers && layers.length > 0 && prevLayersLengthRef.current === 0) {
       initialOpenItems.push('layers-section');
     }
-    // Removed auto-open for inspector as it's no longer an accordion item
-    // if (renderConfig.osmCapabilities) { // Example: keep OSM open by default if desired
-    //   initialOpenItems.push('openstreetmap-section');
-    // }
-    // if (renderConfig.drawing) { // Example: keep Drawing open by default if desired
-    //  initialOpenItems.push('drawing-tools-section');
-    // }
     setOpenAccordionItems(initialOpenItems);
 
     prevLayersLengthRef.current = layers.length;
@@ -228,7 +210,7 @@ const MapControls: React.FC<MapControlsProps> = ({
             const vectorLayer = new VectorLayer({ source: vectorSource });
             const newLayerId = `${uniqueFileId}-${shapeFileName}`;
             onAddLayer({ id: newLayerId, name: shapeFileName, olLayer: vectorLayer as VectorLayerType<VectorSourceType<Feature<any>>>, visible: true });
-            toast({ title: "Capa Añadida", description: `${shapeFileName} añadido exitosamente al mapa.` });
+            toast(`${shapeFileName} añadido exitosamente al mapa.`);
           } else {
             throw new Error(`No se encontraron entidades en Shapefile ${shapeFileName} o los archivos están vacíos.`);
           }
@@ -260,7 +242,7 @@ const MapControls: React.FC<MapControlsProps> = ({
             kmlFileNameInZip = kmlFileEntry.name.substring(0, kmlFileEntry.name.lastIndexOf('.'));
             const kmlContent = await kmlFileEntry.async('text');
             features = new KMLFormat().readFeatures(kmlContent, commonFormatOptions);
-             toast({ title: "Capa Añadida", description: `${kmlFileNameInZip} (de KMZ) añadido exitosamente.` });
+             toast(`${kmlFileNameInZip} (de KMZ) añadido exitosamente.`);
           } else {
             throw new Error(`Archivo KMZ/ZIP ${fileName} no contiene un archivo KML válido.`);
           }
@@ -285,7 +267,7 @@ const MapControls: React.FC<MapControlsProps> = ({
             const dbfBuffer = await dbfFile.async('arraybuffer');
             const geojson = shpjs.combine([shpjs.parseShp(shpBuffer), shpjs.parseDbf(dbfBuffer)]);
             features = new GeoJSONFormat().readFeatures(geojson, commonFormatOptions);
-            toast({ title: "Capa Añadida", description: `${shpFileNameInZip} (Shapefile de ZIP) añadido exitosamente.` });
+            toast(`${shpFileNameInZip} (Shapefile de ZIP) añadido exitosamente.`);
           } else {
             let kmlFileEntry: JSZip.JSZipObject | null = null;
             kmlFileEntry = zip.file(/^doc\\.kml$/i)?.[0] || zip.file(/\\.kml$/i)?.[0] || null;
@@ -293,7 +275,7 @@ const MapControls: React.FC<MapControlsProps> = ({
               const kmlFileNameInZip = kmlFileEntry.name.substring(0, kmlFileEntry.name.lastIndexOf('.'));
               const kmlContent = await kmlFileEntry.async('text');
               features = new KMLFormat().readFeatures(kmlContent, commonFormatOptions);
-              toast({ title: "Capa Añadida", description: `${kmlFileNameInZip} (de ZIP conteniendo KML) añadido exitosamente.` });
+              toast(`${kmlFileNameInZip} (de ZIP conteniendo KML) añadido exitosamente.`);
             } else {
               throw new Error(`Archivo ZIP ${fileName} no contiene un Shapefile válido (archivos .shp y .dbf) ni un archivo KML.`);
             }
@@ -301,11 +283,11 @@ const MapControls: React.FC<MapControlsProps> = ({
         } else if (fileExtension === 'kml') {
           const fileContent = await selectedFile.text();
           features = new KMLFormat().readFeatures(fileContent, commonFormatOptions);
-          toast({ title: "Capa Añadida", description: `${fileBaseName} añadido exitosamente al mapa.` });
+          toast(`${fileBaseName} añadido exitosamente al mapa.`);
         } else if (fileExtension === 'geojson' || fileExtension === 'json') {
           const fileContent = await selectedFile.text();
           features = new GeoJSONFormat().readFeatures(fileContent, commonFormatOptions);
-          toast({ title: "Capa Añadida", description: `${fileBaseName} añadido exitosamente al mapa.` });
+          toast(`${fileBaseName} añadido exitosamente al mapa.`);
         } else {
           throw new Error(`Tipo de archivo no soportado: .${fileExtension}. Por favor, cargue KML, KMZ, GeoJSON, o un ZIP conteniendo un Shapefile.`);
         }
@@ -316,17 +298,17 @@ const MapControls: React.FC<MapControlsProps> = ({
           const newLayerId = `${uniqueFileId}-${fileBaseName}`;
           onAddLayer({ id: newLayerId, name: fileBaseName, olLayer: vectorLayer as VectorLayerType<VectorSourceType<Feature<any>>>, visible: true });
         } else if (features) { 
-           toast({ title: "Capa Vacía", description: `No se encontraron entidades en ${fileName}.`, variant: "destructive" });
+           toast(`No se encontraron entidades en ${fileName}.`);
         }
       }
     } catch (parseError: any) {
       console.error("Error procesando archivo:", parseError);
-      toast({ title: "Error de Procesamiento", description: parseError.message || "Ocurrió un error desconocido.", variant: "destructive" });
+      toast(parseError.message || "Error de Procesamiento: Ocurrió un error desconocido.");
     } finally {
       setIsLoading(false);
       resetFileInput();
     }
-  }, [selectedFile, selectedMultipleFiles, onAddLayer, toast, setIsLoading, resetFileInput, uniqueIdPrefix]);
+  }, [selectedFile, selectedMultipleFiles, onAddLayer, resetFileInput, uniqueIdPrefix]);
 
   React.useEffect(() => {
     if ((selectedFile || selectedMultipleFiles)) { 
@@ -635,5 +617,3 @@ const MapControls: React.FC<MapControlsProps> = ({
 };
 
 export default MapControls;
-
-    

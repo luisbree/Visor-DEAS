@@ -22,8 +22,8 @@ import shpwrite from 'shp-write';
 import MapView, { BASE_LAYER_DEFINITIONS } from '@/components/map-view';
 import MapControls from '@/components/map-controls';
 import FeatureAttributesPanel from '@/components/feature-attributes-panel';
-import { Toaster } from "@/components/ui/toaster";
-import { useToast } from "@/hooks/use-toast";
+// import { Toaster } from "@/components/ui/toaster"; // No longer used
+import { toast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 
 export interface MapLayer {
@@ -148,9 +148,6 @@ export default function GeoMapperClient() {
   const [selectedFeatureAttributes, setSelectedFeatureAttributes] = useState<Record<string, any>[] | null>(null);
   const [isFeatureAttributesPanelVisible, setIsFeatureAttributesPanelVisible] = useState(false);
 
-
-  const { toast } = useToast();
-
   const drawingSourceRef = useRef<VectorSourceType<OLFeature<any>> | null>(null);
   const drawingLayerRef = useRef<VectorLayerType<VectorSourceType<OLFeature<any>>> | null>(null);
   const drawInteractionRef = useRef<Draw | null>(null);
@@ -196,8 +193,8 @@ export default function GeoMapperClient() {
 
   const removeLayer = useCallback((layerId: string) => {
     setLayers(prevLayers => prevLayers.filter(layer => layer.id !== layerId));
-    toast({ title: "Capa Eliminada", description: "La capa ha sido eliminada del mapa." });
-  }, [toast]);
+    toast("Capa eliminada del mapa.");
+  }, []);
 
   const toggleLayerVisibility = useCallback((layerId: string) => {
     setLayers(prevLayers =>
@@ -222,12 +219,12 @@ export default function GeoMapperClient() {
 
     if (typeof drawingSourceRef !== 'object' || drawingSourceRef === null || !('current' in drawingSourceRef)) {
         console.error("CRITICAL: drawingSourceRef is not a valid React ref object. Value:", drawingSourceRef, "Type:", typeof drawingSourceRef);
-        toast({ title: "Error Crítico", description: "Referencia de capa de dibujo (source) corrupta.", variant: "destructive"});
+        toast("Error Crítico: Referencia de capa de dibujo (source) corrupta.");
         return; 
     }
     if (typeof drawingLayerRef !== 'object' || drawingLayerRef === null || !('current' in drawingLayerRef)) {
         console.error("CRITICAL: drawingLayerRef is not a valid React ref object. Value:", drawingLayerRef, "Type:", typeof drawingLayerRef);
-        toast({ title: "Error Crítico", description: "Referencia de capa de dibujo (layer) corrupta.", variant: "destructive"});
+        toast("Error Crítico: Referencia de capa de dibujo (layer) corrupta.");
         return; 
     }
 
@@ -239,7 +236,7 @@ export default function GeoMapperClient() {
         
         if (!drawingSourceRef.current) {
             console.error("CRITICAL: drawingSourceRef.current is null after attempting initialization. Cannot create drawing layer.");
-            toast({ title: "Error Crítico", description: "No se pudo inicializar la fuente de la capa de dibujo.", variant: "destructive"});
+            toast("Error Crítico: No se pudo inicializar la fuente de la capa de dibujo.");
             return; 
         }
         
@@ -263,10 +260,10 @@ export default function GeoMapperClient() {
           drawingSourceRef_current_value_exists: !!drawingSourceRef.current,
           drawingLayerRef_current_value_exists: !!drawingLayerRef.current,
         });
-        toast({ title: "Error Crítico", description: "No se pudo inicializar la capa de dibujo (instantiation).", variant: "destructive"});
+        toast("Error Crítico: No se pudo inicializar la capa de dibujo (instantiation).");
       }
     }
-  }, [toast]);
+  }, []);
 
 
  useEffect(() => {
@@ -316,22 +313,17 @@ export default function GeoMapperClient() {
         if (allAttributes.length > 0) {
           setSelectedFeatureAttributes(allAttributes);
           setIsFeatureAttributesPanelVisible(true);
-          toast({
-            title: `Entidad(es) Seleccionada(s): ${allAttributes.length}`,
-            description: "Panel de atributos abierto. Utilice Shift + Arrastrar para selección por área."
-          });
+          toast(`Panel de atributos abierto con ${allAttributes.length} entidad(es).`);
         } else {
           setSelectedFeatureAttributes(null);
           setIsFeatureAttributesPanelVisible(false);
-          toast({ title: "Sin Atributos Visibles", description: "La(s) entidad(es) seleccionada(s) no tienen atributos visibles." });
+          toast("La(s) entidad(es) seleccionada(s) no tienen atributos visibles.");
         }
       } else {
         setSelectedFeatureAttributes(null);
         setIsFeatureAttributesPanelVisible(false);
-        // Consider not showing a toast if no features are found by dragbox, to avoid noise.
-        // For single click, it might still be useful.
       }
-  }, [toast]);
+  }, []);
 
 
   const handleMapClick = useCallback((event: any) => {
@@ -392,7 +384,6 @@ export default function GeoMapperClient() {
         
         if (dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd);
-            // Check if interaction is part of map before removing
             const interactionsArray = currentMap.getInteractions().getArray();
             if (interactionsArray.includes(dragBoxInteractionRef.current)) {
                 currentMap.removeInteraction(dragBoxInteractionRef.current);
@@ -401,57 +392,51 @@ export default function GeoMapperClient() {
             dragBoxInteractionRef.current = null;
         }
         
-        // Restore default DragZoom only if it was managed (i.e., defaultDragZoomInteractionRef.current is not null)
         if (defaultDragZoomInteractionRef.current) {
              const dragZoomInteraction = currentMap.getInteractions().getArray().find(
                 (interaction) => interaction === defaultDragZoomInteractionRef.current
              );
-             if (dragZoomInteraction) { // Ensure it's still on the map (it should be)
+             if (dragZoomInteraction) { 
                 dragZoomInteraction.setActive(wasDragZoomActiveRef.current);
              }
-            defaultDragZoomInteractionRef.current = null; // Clear the ref after restoring
+            defaultDragZoomInteractionRef.current = null; 
         }
     };
 
     if (isInspectModeActive && !activeDrawTool) {
         if (mapDiv) mapDiv.classList.add('cursor-crosshair');
-        if (!currentMap) return cleanupInspectionInteractions; // Early exit if map not ready
+        if (!currentMap) return cleanupInspectionInteractions; 
 
         currentMap.on('singleclick', handleMapClick);
 
-        // Deactivate default DragZoom if present and not already managed
         if (!defaultDragZoomInteractionRef.current) {
             currentMap.getInteractions().forEach(interaction => {
                 if (interaction instanceof DragZoom) {
                     defaultDragZoomInteractionRef.current = interaction;
                     wasDragZoomActiveRef.current = interaction.getActive();
-                    interaction.setActive(false); // Deactivate it
+                    interaction.setActive(false); 
                 }
             });
         }
         
-        // Ensure DragBox is only added if it doesn't exist
         if (!dragBoxInteractionRef.current) {
             dragBoxInteractionRef.current = new DragBox({
                 condition: platformModifierKeyOnly, 
-                // className: 'my-custom-dragbox-class' // For custom styling if needed via globals.css
             });
             currentMap.addInteraction(dragBoxInteractionRef.current);
         }
         
-        // Ensure 'boxend' listener is fresh
-        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); // Remove previous if any
+        dragBoxInteractionRef.current.un('boxend', handleDragBoxEnd); 
         dragBoxInteractionRef.current.on('boxend', handleDragBoxEnd);
 
     } else {
         cleanupInspectionInteractions();
-        if (!isInspectModeActive) { // If inspect mode is being turned off, hide attributes
+        if (!isInspectModeActive) { 
              setSelectedFeatureAttributes(null);
              setIsFeatureAttributesPanelVisible(false);
         }
     }
 
-    // This return is the cleanup function for the useEffect hook
     return cleanupInspectionInteractions;
 
   }, [isInspectModeActive, activeDrawTool, handleMapClick, handleDragBoxEnd]);
@@ -466,15 +451,15 @@ export default function GeoMapperClient() {
         const extent: Extent = source.getExtent();
         if (extent && extent.every(isFinite) && (extent[2] - extent[0] > 0) && (extent[3] - extent[1] > 0)) {
           mapRef.current.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000, maxZoom: 18 });
-          toast({ title: "Zoom a Capa", description: `Mostrando extensión de ${layer.name}.` });
+          toast(`Mostrando extensión de ${layer.name}.`);
         } else {
-          toast({ title: "Extensión Inválida", description: `Capa "${layer.name}" podría estar vacía o tener una extensión inválida.`, variant: "destructive" });
+          toast(`Capa "${layer.name}" podría estar vacía o tener una extensión inválida.`);
         }
       } else {
-        toast({ title: "Capa Vacía", description: `Capa "${layer.name}" no contiene entidades.`, variant: "destructive" });
+        toast(`Capa "${layer.name}" no contiene entidades.`);
       }
     }
-  }, [layers, toast]);
+  }, [layers]);
 
   const toggleToolsPanelCollapse = useCallback(() => setIsToolsPanelCollapsed(prev => !prev), []);
   const toggleLayersPanelCollapse = useCallback(() => setIsLayersPanelCollapsed(prev => !prev), []);
@@ -557,29 +542,29 @@ export default function GeoMapperClient() {
 
   const fetchOSMData = useCallback(async () => {
     if (!drawingSourceRef.current) {
-        toast({ title: "Error de Dibujo", description: "La capa de dibujo no está inicializada.", variant: "destructive" });
+        toast("La capa de dibujo no está inicializada.");
         return;
     }
     const drawnFeatures = drawingSourceRef.current.getFeatures();
     if (drawnFeatures.length === 0) {
-        toast({ title: "Sin Dibujos", description: "Por favor, dibuje una entidad en el mapa primero.", variant: "destructive" });
+        toast("Por favor, dibuje una entidad en el mapa primero.");
         return;
     }
     const lastDrawnFeature = drawnFeatures[drawnFeatures.length - 1];
 
     if (selectedOSMCategoryIdsRef.current.length === 0) {
-        toast({ title: "Sin Categorías Seleccionadas", description: "Por favor, seleccione al menos una categoría OSM para descargar.", variant: "destructive" });
+        toast("Por favor, seleccione al menos una categoría OSM para descargar.");
         return;
     }
     
     const geometry = lastDrawnFeature.getGeometry();
     if (!geometry || geometry.getType() !== 'Polygon') {
-        toast({ title: "Geometría Inválida", description: "La descarga de datos OSM requiere un polígono dibujado. Por favor, dibuje un polígono.", variant: "destructive"});
+        toast("La descarga de datos OSM requiere un polígono dibujado. Por favor, dibuje un polígono.");
         return;
     }
     
     setIsFetchingOSM(true);
-    toast({ title: "Obteniendo Datos OSM", description: "Descargando datos de OpenStreetMap..." });
+    toast("Descargando datos de OpenStreetMap...");
 
     try {
       const extent3857 = geometry.getExtent();
@@ -663,18 +648,18 @@ export default function GeoMapperClient() {
       });
 
       if (featuresAddedCount > 0) {
-        toast({ title: "Datos OSM Cargados", description: `${featuresAddedCount} entidades añadidas al mapa.` });
+        toast(`${featuresAddedCount} entidades OSM añadidas al mapa.`);
       } else {
-        toast({ title: "Sin Datos OSM Encontrados", description: "Ninguna entidad coincidió con sus criterios en el área seleccionada." });
+        toast("Ninguna entidad OSM coincidió con sus criterios en el área seleccionada.");
       }
 
     } catch (error: any) {
       console.error("Error en fetchOSMData (procesamiento o API):", error);
-      toast({ title: "Error Obteniendo Datos OSM", description: error.message || "Ocurrió un error desconocido.", variant: "destructive" });
+      toast(error.message || "Ocurrió un error desconocido obteniendo datos OSM.");
     } finally {
       setIsFetchingOSM(false);
     }
-  }, [toast, addLayer]);
+  }, [addLayer]);
 
 
   const toggleDrawingTool = useCallback((toolType: 'Polygon' | 'LineString' | 'Point') => {
@@ -715,13 +700,13 @@ export default function GeoMapperClient() {
   const clearDrawnFeatures = useCallback(() => {
     if (drawingSourceRef.current) {
       drawingSourceRef.current.clear();
-      toast({ title: "Dibujos Limpiados", description: "Todos los dibujos han sido eliminados." });
+      toast("Todos los dibujos han sido eliminados.");
     }
-  }, [toast]);
+  }, []);
 
   const saveDrawnFeaturesAsKML = useCallback(() => {
     if (!drawingSourceRef.current || drawingSourceRef.current.getFeatures().length === 0) {
-      toast({ title: "Sin Dibujos", description: "Nada dibujado para guardar.", variant: "destructive" });
+      toast("Nada dibujado para guardar.");
       return;
     }
     const features = drawingSourceRef.current.getFeatures();
@@ -732,20 +717,20 @@ export default function GeoMapperClient() {
         featureProjection: 'EPSG:3857',
       });
       triggerDownload(kmlString, 'drawings.kml', 'application/vnd.google-earth.kml+xml;charset=utf-8');
-      toast({ title: "Dibujos Guardados", description: "Dibujos guardados como drawings.kml." });
+      toast("Dibujos guardados como drawings.kml.");
     } catch (error) {
       console.error("Error guardando KML:", error);
-      toast({ title: "Error Guardando KML", description: "No se pudieron guardar los dibujos.", variant: "destructive" });
+      toast("No se pudieron guardar los dibujos KML.");
     }
-  }, [toast]);
+  }, []);
 
   const handleDownloadOSMLayers = useCallback(async () => {
     setIsDownloading(true);
-    toast({ title: "Procesando descarga...", description: `Formato: ${downloadFormat.toUpperCase()}` });
+    toast(`Procesando descarga: ${downloadFormat.toUpperCase()}...`);
 
     const osmLayers = layers.filter(layer => layer.id.startsWith('osm-'));
     if (osmLayers.length === 0) {
-      toast({ title: "Sin Capas OSM", description: "No hay capas OSM para descargar.", variant: "destructive" });
+      toast("No hay capas OSM para descargar.");
       setIsDownloading(false);
       return;
     }
@@ -772,7 +757,7 @@ export default function GeoMapperClient() {
           }
         });
         triggerDownload(geojsonString, 'osm_data.geojson', 'application/geo+json;charset=utf-8');
-        toast({ title: "Descarga Completa", description: "Entidades OSM descargadas como GeoJSON." });
+        toast("Entidades OSM descargadas como GeoJSON.");
 
       } else if (downloadFormat === 'kml') {
         const allFeatures: OLFeature<any>[] = [];
@@ -788,17 +773,17 @@ export default function GeoMapperClient() {
           featureProjection: 'EPSG:3857'
         });
         triggerDownload(kmlString, 'osm_data.kml', 'application/vnd.google-earth.kml+xml;charset=utf-8');
-        toast({ title: "Descarga Completa", description: "Entidades OSM descargadas como KML." });
+        toast("Entidades OSM descargadas como KML.");
 
       } else if (downloadFormat === 'shp') {
-        const geoJsonDataForShpWrite: { [key: string]: any } = {}; // For shpwrite.zip data param
+        const geoJsonDataForShpWrite: { [key: string]: any } = {}; 
         const customTypesForShpWrite: { 
             [key: string]: { 
                 points: any[], 
                 lines: any[], 
                 polygons: any[] 
             } 
-        } = {}; // For shpwrite.zip options.types param
+        } = {}; 
         
         let featuresFoundForShp = false;
 
@@ -828,14 +813,12 @@ export default function GeoMapperClient() {
             featuresFoundForShp = true;
             const layerFileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\s+/g, '_');
             
-            // Create a full FeatureCollection for this layer to pass as main data
             geoJsonDataForShpWrite[layerFileName] = geoJsonFormatter.writeFeaturesObject(olFeatures, {
               dataProjection: 'EPSG:4326',
               featureProjection: 'EPSG:3857',
               featureProperties: sanitizeProperties
             });
 
-            // Prepare data for options.types
             customTypesForShpWrite[layerFileName] = { points: [], lines: [], polygons: [] };
 
             olFeatures.forEach(olFeature => {
@@ -843,9 +826,7 @@ export default function GeoMapperClient() {
                 dataProjection: 'EPSG:4326',
                 featureProjection: 'EPSG:3857',
               });
-              // Apply property sanitization to the individual GeoJSON feature
               geoJsonFeature.properties = sanitizeProperties(olFeature);
-
 
               const geomType = olFeature.getGeometry()?.getType();
               if (geomType === 'Point' || geomType === 'MultiPoint') {
@@ -862,7 +843,7 @@ export default function GeoMapperClient() {
         if (!featuresFoundForShp) throw new Error("No hay entidades en las capas OSM para exportar como Shapefile.");
         
         const shpWriteOptions = {
-          folder: 'shapefiles', // Optional: name of the folder within the zip
+          folder: 'shapefiles', 
           types: customTypesForShpWrite
         };
         
@@ -875,16 +856,16 @@ export default function GeoMapperClient() {
           uint8Array[i] = byteString.charCodeAt(i);
         }
         triggerDownloadArrayBuffer(arrayBuffer, 'osm_shapefiles.zip', 'application/zip');
-        toast({ title: "Descarga Completa", description: "Entidades OSM descargadas como Shapefile (ZIP)." });
+        toast("Entidades OSM descargadas como Shapefile (ZIP).");
       }
 
     } catch (error: any) {
       console.error("Error descargando capas OSM:", error);
-      toast({ title: "Error de Descarga", description: error.message || "No se pudieron descargar las capas.", variant: "destructive" });
+      toast(error.message || "No se pudieron descargar las capas.");
     } finally {
       setIsDownloading(false);
     }
-  }, [layers, downloadFormat, toast]);
+  }, [layers, downloadFormat]);
 
   const handleChangeBaseLayer = useCallback((newBaseLayerId: string) => {
     if (mapRef.current) {
@@ -900,22 +881,22 @@ export default function GeoMapperClient() {
   const handleShowLayerTable = useCallback((layerId: string) => {
     const layerToShow = layers.find(l => l.id === layerId);
     if (!layerToShow || !layerToShow.olLayer) {
-      toast({ title: "Error", description: "Capa no encontrada o inválida.", variant: "destructive" });
+      toast("Error: Capa no encontrada o inválida.");
       return;
     }
     const source = layerToShow.olLayer.getSource();
     if (!source) {
-      toast({ title: "Capa Vacía", description: `La capa "${layerToShow.name}" no tiene fuente de datos.`, variant: "destructive" });
+      toast(`La capa "${layerToShow.name}" no tiene fuente de datos.`);
       return;
     }
     const features = source.getFeatures();
     if (features.length === 0) {
-      toast({ title: "Capa Vacía", description: `La capa "${layerToShow.name}" no contiene entidades.`, variant: "destructive" });
+      toast(`La capa "${layerToShow.name}" no contiene entidades.`);
       return;
     }
     processAndDisplayFeatures(features);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, toast, processAndDisplayFeatures]); // processAndDisplayFeatures debe estar en las dependencias
+  }, [layers, processAndDisplayFeatures]); 
 
   const layersPanelRenderConfig = { 
     baseLayers: true,
@@ -978,7 +959,7 @@ export default function GeoMapperClient() {
                   onToggleLayerVisibility={toggleLayerVisibility}
                   onRemoveLayer={removeLayer}
                   onZoomToLayerExtent={zoomToLayerExtent}
-                  onShowLayerTable={handleShowLayerTable} // Pasar la nueva función
+                  onShowLayerTable={handleShowLayerTable} 
                   onAddLayer={addLayer}
                   isInspectModeActive={isInspectModeActive} 
                   onToggleInspectMode={() => {
@@ -1057,15 +1038,14 @@ export default function GeoMapperClient() {
                   onToggleLayerVisibility={() => {}}
                   onRemoveLayer={() => {}}
                   onZoomToLayerExtent={() => {}}
-                  onShowLayerTable={() => {}} // No se usa aquí, pero la prop existe
+                  onShowLayerTable={() => {}} 
               />
             </div>
           )}
         </div>
 
       </div>
-      <Toaster />
+      {/* Toaster component is no longer used here, SimpleNotification is in layout.tsx */}
     </div>
   );
 }
-
