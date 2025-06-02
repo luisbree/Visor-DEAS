@@ -1038,13 +1038,17 @@ export default function GeoMapperClient() {
       }
 
       const capabilitiesUrl = `${url}/wms?service=WMS&version=1.3.0&request=GetCapabilities`;
-      const proxyUrl = `/api/geoserver-proxy?url=${encodeURIComponent(capabilitiesUrl)}`;
+      // Use a relative path for the proxy URL
+      const proxyApiUrl = `/api/geoserver-proxy?url=${encodeURIComponent(capabilitiesUrl)}`;
 
-      const response = await fetch(proxyUrl); // Use the proxy
+      const response = await fetch(proxyApiUrl); 
 
       if (!response.ok) {
-         const errorData = await response.json().catch(() => ({ error: "Error desconocido del proxy", details: response.statusText }));
-         console.error("Error desde el proxy de GeoServer:", errorData);
+         const errorData = await response.json().catch(() => ({ 
+           error: "Error desconocido del proxy o respuesta no JSON", 
+           details: `Proxy status: ${response.status} ${response.statusText}`
+         }));
+         console.error("Error desde el proxy de GeoServer:", errorData, "Status:", response.status, response.statusText);
          throw new Error(errorData.error || `Error al obtener capacidades vía proxy: ${response.status} ${response.statusText}`);
       }
 
@@ -1052,16 +1056,24 @@ export default function GeoMapperClient() {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-      const errorNode = xmlDoc.querySelector("ServiceExceptionReport ServiceException");
+      const errorNode = xmlDoc.querySelector("ServiceExceptionReport ServiceException, ServiceExceptionReport > ServiceException");
       if (errorNode) {
-        throw new Error(`Error de GeoServer: ${errorNode.textContent || 'Error desconocido en la respuesta XML.'}`);
+        console.error("GeoServer ServiceException:", errorNode.textContent);
+        throw new Error(`Error de GeoServer: ${errorNode.textContent || 'Error desconocido en la respuesta XML de GeoServer.'}`);
       }
+      
+      const exceptionTextNode = xmlDoc.querySelector("ExceptionText"); // For some GeoServer error formats
+      if(exceptionTextNode && exceptionTextNode.textContent?.trim()) {
+        console.error("GeoServer ExceptionText:", exceptionTextNode.textContent);
+        throw new Error(`Error de GeoServer: ${exceptionTextNode.textContent.trim()}`);
+      }
+
 
       const discovered: GeoServerDiscoveredLayer[] = [];
       const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer");
 
       if (layerNodes.length === 0) {
-           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer");
+           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer"); // Try root layers if nested aren't found
             topLayerNodes.forEach(node => {
                  const nameElement = node.querySelector("Name");
                 const titleElement = node.querySelector("Title");
@@ -1088,12 +1100,24 @@ export default function GeoMapperClient() {
       }
 
 
-      if (discovered.length === 0) {
-        toast("No se encontraron capas publicadas en el GeoServer o la estructura XML no es la esperada.");
-      } else {
+      if (discovered.length === 0 && !errorNode && !exceptionTextNode) { // Check if no layers found AND no explicit error was parsed
+        const ogcExceptionNode = xmlDoc.querySelector("ows\\:ExceptionText"); // OGC standard exception
+        if (ogcExceptionNode && ogcExceptionNode.textContent) {
+             console.error("GeoServer OGC Exception:", ogcExceptionNode.textContent);
+             throw new Error(`Error de GeoServer (OGC): ${ogcExceptionNode.textContent}`);
+        }
+        const rawXmlForDebugging = xmlDoc.documentElement.outerHTML;
+        if (rawXmlForDebugging.length < 5000) { // Log snippet if not too long
+            console.warn("GeoServer GetCapabilities XML structure might be unexpected or empty. Response snippet:", rawXmlForDebugging.substring(0, 1000));
+        } else {
+            console.warn("GeoServer GetCapabilities XML structure might be unexpected or empty. Response is large, check network tab for full XML.");
+        }
+        toast("No se encontraron capas publicadas en GeoServer o la estructura XML no es la esperada.");
+      } else if (discovered.length > 0) {
         setGeoServerDiscoveredLayers(discovered);
         toast(`${discovered.length} capas encontradas en GeoServer.`);
       }
+      // If an error was thrown earlier, it would have been caught by the catch block.
 
     } catch (error: any) {
       console.error("Error conectando a GeoServer:", error);
