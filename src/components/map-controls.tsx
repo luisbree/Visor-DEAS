@@ -22,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Layers, FileText, Loader2, MousePointerClick, XCircle, ZoomIn, Trash2,
   Square, PenLine, Dot, Ban, Eraser, Save, ListFilter, Download, MapPin, Plus, Map as MapIcon, Table2,
-  Eye, EyeOff, Server // Importar icono de Server para GeoServer
+  Eye, EyeOff, Server
 } from 'lucide-react';
 import {
   Accordion,
@@ -37,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { MapLayer } from '@/components/geo-mapper-client'; // Assuming GeoServerDiscoveredLayer might be defined here or passed
+import type { MapLayer } from '@/components/geo-mapper-client';
 import { toast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 
@@ -49,7 +49,7 @@ interface GeoServerDiscoveredLayerForControls {
 interface RenderConfig {
   baseLayers?: boolean;
   layers?: boolean;
-  geoServer?: boolean; // New config for GeoServer section
+  geoServer?: boolean;
   inspector?: boolean; 
   osmCapabilities?: boolean;
   drawing?: boolean;
@@ -93,7 +93,6 @@ interface MapControlsProps {
   onDownloadOSMLayers?: () => void;
   isDownloading?: boolean;
 
-  // GeoServer Props
   geoServerUrlInput?: string;
   onGeoServerUrlChange?: (url: string) => void;
   onFetchGeoServerLayers?: () => void;
@@ -368,7 +367,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           </div>
         )}
 
-        {renderConfig.layers && ( // This section will now also contain inspector button
+        {renderConfig.layers && (
           <div className="mb-2 p-2 bg-white/5 rounded-md">
             <div className="flex items-center gap-2">
               <Input
@@ -394,7 +393,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                 )}
                 {isLoading ? 'Procesando...' : 'Importar'}
               </Button>
-              {renderConfig.inspector && onToggleInspectMode && ( // Inspector button here
+              {renderConfig.inspector && onToggleInspectMode && (
                 <Button 
                   onClick={onToggleInspectMode} 
                   className={`flex-1 text-xs h-8 focus-visible:ring-primary ${
@@ -452,7 +451,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                             >
                               {layer.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                             </Button>
-                          <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white" title={layer.name}>
+                          <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white min-w-0" title={layer.name}>
                             {layer.name}
                           </span>
                           <div className="flex items-center space-x-0.5">
@@ -507,7 +506,7 @@ const MapControls: React.FC<MapControlsProps> = ({
               </AccordionTrigger>
               <AccordionContent className="p-3 pt-2 space-y-3 border-t border-white/10 bg-transparent rounded-b-md">
                 <div className="space-y-1">
-                   <Label htmlFor={`${uniqueIdPrefix}-geoserver-url`} className="text-xs font-medium text-white/90">URL de GeoServer (WMS)</Label>
+                   <Label htmlFor={`${uniqueIdPrefix}-geoserver-url`} className="text-xs font-medium text-white/90 block">URL de GeoServer (WMS)</Label>
                    <Input 
                      id={`${uniqueIdPrefix}-geoserver-url`}
                      type="text"
@@ -523,7 +522,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                   disabled={isLoadingGeoServerLayers || !geoServerUrlInput.trim()}
                 >
                   {isLoadingGeoServerLayers ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Layers className="mr-2 h-3 w-3" />}
-                  {isLoadingGeoServerLayers ? 'Cargando...' : 'Cargar Capas de GeoServer'}
+                  <span className="truncate">{isLoadingGeoServerLayers ? 'Cargando...' : 'Cargar Capas de GeoServer'}</span>
                 </Button>
                 {geoServerDiscoveredLayers && geoServerDiscoveredLayers.length > 0 && (
                   <>
@@ -532,7 +531,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                     <ScrollArea className="h-32 border border-white/10 p-2 rounded-md bg-black/10">
                         <ul className="space-y-1.5">
                             {geoServerDiscoveredLayers.map((gsLayer) => (
-                                <li key={gsLayer.name} className="flex items-center p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/20 transition-colors">
+                                <li key={gsLayer.name} className="flex items-center p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/20 transition-colors overflow-hidden">
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -543,8 +542,11 @@ const MapControls: React.FC<MapControlsProps> = ({
                                     >
                                         {gsLayer.addedToMap ? 'Añadida' : 'Añadir'}
                                     </Button>
-                                    <span className="flex-1 cursor-default truncate text-xs font-medium text-white overflow-hidden whitespace-nowrap" title={`${gsLayer.title} (${gsLayer.name})`}>
-                                        {gsLayer.title} <span className="text-gray-400 text-xxs">({gsLayer.name})</span>
+                                    <span 
+                                      className="flex-1 cursor-default text-xs font-medium text-white truncate min-w-0"
+                                      title={`${gsLayer.title} (${gsLayer.name})`}
+                                    >
+                                        {gsLayer.title}
                                     </span>
                                 </li>
                             ))}
@@ -704,5 +706,3 @@ const MapControls: React.FC<MapControlsProps> = ({
 };
 
 export default MapControls;
-
-    
