@@ -6,10 +6,10 @@ import { type Map as OLMap, Feature as OLFeature } from 'ol';
 import type VectorLayerType from 'ol/layer/Vector';
 import type VectorSourceType from 'ol/source/Vector';
 import type { Extent } from 'ol/extent';
-import { ChevronDown, ChevronUp, MapPin, Loader2, GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Loader2, Server as ServerIcon } from 'lucide-react'; // Added ServerIcon
 import Draw from 'ol/interaction/Draw';
 import DragBox from 'ol/interaction/DragBox';
-import DragZoom from 'ol/interaction/DragZoom'; // Import DragZoom
+import DragZoom from 'ol/interaction/DragZoom';
 import { platformModifierKeyOnly } from 'ol/events/condition';
 import { KML, GeoJSON } from 'ol/format';
 import VectorLayer from 'ol/layer/Vector';
@@ -32,14 +32,13 @@ export interface MapLayer {
   name: string;
   olLayer: VectorLayerType<VectorSourceType<OLFeature<any>>> | TileLayer<TileWMS>;
   visible: boolean;
-  isGeoServerLayer?: boolean; // Flag to identify GeoServer layers
+  isGeoServerLayer?: boolean;
 }
 
 interface GeoServerDiscoveredLayer {
   name: string;
   title: string;
   addedToMap: boolean;
-  // We can add more properties here if needed, e.g., abstract, srs, etc.
 }
 
 interface OSMCategoryConfig {
@@ -188,6 +187,13 @@ export default function GeoMapperClient() {
   const [isLayersPanelDragging, setIsLayersPanelDragging] = useState(false);
   const layersPanelDragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
 
+  const geoServerPanelRef = useRef<HTMLDivElement>(null); // New GeoServer Panel Ref
+  const [isGeoServerPanelCollapsed, setIsGeoServerPanelCollapsed] = useState(false);
+  const [geoServerPanelPosition, setGeoServerPanelPosition] = useState({ x: PANEL_PADDING, y: PANEL_PADDING });
+  const [isGeoServerPanelDragging, setIsGeoServerPanelDragging] = useState(false);
+  const geoServerPanelDragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
+
+
   const [isInspectModeActive, setIsInspectModeActive] = useState(false);
   const [selectedFeatureAttributes, setSelectedFeatureAttributes] = useState<Record<string, any>[] | null>(null);
   const [isFeatureAttributesPanelVisible, setIsFeatureAttributesPanelVisible] = useState(false);
@@ -217,30 +223,40 @@ export default function GeoMapperClient() {
   const [activeBaseLayerId, setActiveBaseLayerId] = useState<string>(BASE_LAYER_DEFINITIONS[0].id);
 
   // GeoServer related state
-  const [geoServerUrlInput, setGeoServerUrlInput] = useState<string>(''); // Or your default GeoServer URL
+  const [geoServerUrlInput, setGeoServerUrlInput] = useState<string>('');
   const [geoServerDiscoveredLayers, setGeoServerDiscoveredLayers] = useState<GeoServerDiscoveredLayer[]>([]);
   const [isLoadingGeoServerLayers, setIsLoadingGeoServerLayers] = useState<boolean>(false);
 
   useEffect(() => {
-    if (mapAreaRef.current && toolsPanelRef.current) {
+    if (mapAreaRef.current) {
       const mapRect = mapAreaRef.current.getBoundingClientRect();
-      const panelWidth = toolsPanelRef.current.offsetWidth || PANEL_WIDTH;
-      setToolsPanelPosition({
-        x: mapRect.width - panelWidth - PANEL_PADDING,
-        y: PANEL_PADDING,
-      });
-    }
-     if (layersPanelRef.current) {
-        setLayersPanelPosition({
-            x: PANEL_PADDING,
-            y: PANEL_PADDING,
+      if (toolsPanelRef.current) {
+        const panelWidth = toolsPanelRef.current.offsetWidth || PANEL_WIDTH;
+        setToolsPanelPosition({
+          x: mapRect.width - panelWidth - PANEL_PADDING,
+          y: PANEL_PADDING,
         });
+      }
+      if (layersPanelRef.current) {
+          setLayersPanelPosition({
+              x: PANEL_PADDING,
+              y: PANEL_PADDING,
+          });
+      }
+      if (geoServerPanelRef.current) { // Initial position for GeoServer panel
+        const panelWidth = geoServerPanelRef.current.offsetWidth || PANEL_WIDTH;
+        const toolsPanelHeight = toolsPanelRef.current?.offsetHeight || 200; // Approx height or actual if available
+        setGeoServerPanelPosition({
+          x: mapRect.width - panelWidth - PANEL_PADDING, // Same X as tools
+          y: PANEL_PADDING + toolsPanelHeight + PANEL_PADDING * 2, // Below tools panel with extra padding
+        });
+      }
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Removed toolsPanelRef and layersPanelRef from deps to avoid re-running on resize of panels
 
   const addLayer = useCallback((newLayer: MapLayer) => {
     setLayers(prevLayers => {
-      // Prevent adding the same layer ID twice
       if (prevLayers.some(l => l.id === newLayer.id)) {
         toast(`La capa "${newLayer.name}" ya está en el mapa.`);
         return prevLayers;
@@ -353,7 +369,7 @@ export default function GeoMapperClient() {
         currentMap.addLayer(appLayer.olLayer);
       }
       appLayer.olLayer.setVisible(appLayer.visible);
-      appLayer.olLayer.setZIndex(100 + layers.indexOf(appLayer)); // Ensure zIndex respects layer order
+      appLayer.olLayer.setZIndex(100 + layers.indexOf(appLayer));
     });
 
     if (drawingLayerRef.current) {
@@ -384,7 +400,6 @@ export default function GeoMapperClient() {
         if (allAttributes.length > 0) {
           setSelectedFeatureAttributes(allAttributes);
           setIsFeatureAttributesPanelVisible(true);
-          // toast(`Panel de atributos abierto con ${allAttributes.length} entidad(es).`); // Toast can be too noisy here
         } else {
           setSelectedFeatureAttributes(null);
           setIsFeatureAttributesPanelVisible(false);
@@ -398,7 +413,7 @@ export default function GeoMapperClient() {
         toast("Ninguna entidad encontrada para inspeccionar.");
       }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, []);
 
 
   const handleMapClick = useCallback((event: any) => {
@@ -545,36 +560,59 @@ export default function GeoMapperClient() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, toast]);
+  }, [layers]);
 
   const toggleToolsPanelCollapse = useCallback(() => setIsToolsPanelCollapsed(prev => !prev), []);
   const toggleLayersPanelCollapse = useCallback(() => setIsLayersPanelCollapsed(prev => !prev), []);
+  const toggleGeoServerPanelCollapse = useCallback(() => setIsGeoServerPanelCollapsed(prev => !prev), []);
+
 
   const handlePanelMouseDown = useCallback((
     e: React.MouseEvent<HTMLDivElement>,
-    panelType: 'tools' | 'layers'
+    panelType: 'tools' | 'layers' | 'geoserver'
   ) => {
-    const panelRef = panelType === 'tools' ? toolsPanelRef : layersPanelRef;
-    const setDragging = panelType === 'tools' ? setIsToolsPanelDragging : setIsLayersPanelDragging;
-    const dragStartRef = panelType === 'tools' ? toolsPanelDragStartRef : layersPanelDragStartRef;
-    const position = panelType === 'tools' ? toolsPanelPosition : layersPanelPosition;
+    let panelRef: React.RefObject<HTMLDivElement> | null = null;
+    let setDragging: React.Dispatch<React.SetStateAction<boolean>> | null = null;
+    let dragStartRefToUpdate: React.MutableRefObject<{ x: number; y: number; panelX: number; panelY: number; }> | null = null;
+    let currentPosition: { x: number; y: number; } | null = null;
 
-    if (!panelRef.current) return;
+    switch (panelType) {
+      case 'tools':
+        panelRef = toolsPanelRef;
+        setDragging = setIsToolsPanelDragging;
+        dragStartRefToUpdate = toolsPanelDragStartRef;
+        currentPosition = toolsPanelPosition;
+        break;
+      case 'layers':
+        panelRef = layersPanelRef;
+        setDragging = setIsLayersPanelDragging;
+        dragStartRefToUpdate = layersPanelDragStartRef;
+        currentPosition = layersPanelPosition;
+        break;
+      case 'geoserver':
+        panelRef = geoServerPanelRef;
+        setDragging = setIsGeoServerPanelDragging;
+        dragStartRefToUpdate = geoServerPanelDragStartRef;
+        currentPosition = geoServerPanelPosition;
+        break;
+    }
+
+    if (!panelRef?.current || !setDragging || !dragStartRefToUpdate || !currentPosition) return;
 
     const targetElement = e.target as HTMLElement;
-    if (targetElement.closest('button')) {
+    if (targetElement.closest('button')) { // Ignore clicks on buttons within the header
         return;
     }
 
     setDragging(true);
-    dragStartRef.current = {
+    dragStartRefToUpdate.current = {
       x: e.clientX,
       y: e.clientY,
-      panelX: position.x,
-      panelY: position.y,
+      panelX: currentPosition.x,
+      panelY: currentPosition.y,
     };
     e.preventDefault();
-  }, [toolsPanelPosition, layersPanelPosition]);
+  }, [toolsPanelPosition, layersPanelPosition, geoServerPanelPosition]);
 
 
   useEffect(() => {
@@ -582,38 +620,36 @@ export default function GeoMapperClient() {
       if (!mapAreaRef.current) return;
       const mapRect = mapAreaRef.current.getBoundingClientRect();
 
-      if (isToolsPanelDragging && toolsPanelRef.current) {
-        const dx = e.clientX - toolsPanelDragStartRef.current.x;
-        const dy = e.clientY - toolsPanelDragStartRef.current.y;
-        let newX = toolsPanelDragStartRef.current.panelX + dx;
-        let newY = toolsPanelDragStartRef.current.panelY + dy;
-        const panelRect = toolsPanelRef.current.getBoundingClientRect();
+      const movePanel = (
+        panelRef: React.RefObject<HTMLDivElement>,
+        dragStartRef: React.MutableRefObject<{ x: number; y: number; panelX: number; panelY: number; }>,
+        setPosition: React.Dispatch<React.SetStateAction<{ x: number; y: number; }>>
+      ) => {
+        if (!panelRef.current) return;
+        const dx = e.clientX - dragStartRef.current.x;
+        const dy = e.clientY - dragStartRef.current.y;
+        let newX = dragStartRef.current.panelX + dx;
+        let newY = dragStartRef.current.panelY + dy;
+        const panelRect = panelRef.current.getBoundingClientRect();
         if (panelRect.width > 0 && panelRect.height > 0 && mapRect.width > 0 && mapRect.height > 0) {
             newX = Math.max(0, Math.min(newX, mapRect.width - panelRect.width));
             newY = Math.max(0, Math.min(newY, mapRect.height - panelRect.height));
-            if (!isNaN(newX) && !isNaN(newY)) setToolsPanelPosition({ x: newX, y: newY });
+            if (!isNaN(newX) && !isNaN(newY)) setPosition({ x: newX, y: newY });
         }
-      }
+      };
 
-      if (isLayersPanelDragging && layersPanelRef.current) {
-        const dx = e.clientX - layersPanelDragStartRef.current.x;
-        const dy = e.clientY - layersPanelDragStartRef.current.y;
-        let newX = layersPanelDragStartRef.current.panelX + dx;
-        let newY = layersPanelDragStartRef.current.panelY + dy;
-        const panelRect = layersPanelRef.current.getBoundingClientRect();
-         if (panelRect.width > 0 && panelRect.height > 0 && mapRect.width > 0 && mapRect.height > 0) {
-            newX = Math.max(0, Math.min(newX, mapRect.width - panelRect.width));
-            newY = Math.max(0, Math.min(newY, mapRect.height - panelRect.height));
-            if (!isNaN(newX) && !isNaN(newY)) setLayersPanelPosition({ x: newX, y: newY });
-        }
-      }
+      if (isToolsPanelDragging) movePanel(toolsPanelRef, toolsPanelDragStartRef, setToolsPanelPosition);
+      if (isLayersPanelDragging) movePanel(layersPanelRef, layersPanelDragStartRef, setLayersPanelPosition);
+      if (isGeoServerPanelDragging) movePanel(geoServerPanelRef, geoServerPanelDragStartRef, setGeoServerPanelPosition);
     };
+
     const handleMouseUp = () => {
         setIsToolsPanelDragging(false);
         setIsLayersPanelDragging(false);
+        setIsGeoServerPanelDragging(false);
     };
 
-    if (isToolsPanelDragging || isLayersPanelDragging) {
+    if (isToolsPanelDragging || isLayersPanelDragging || isGeoServerPanelDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     } else {
@@ -624,7 +660,8 @@ export default function GeoMapperClient() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isToolsPanelDragging, isLayersPanelDragging, toolsPanelDragStartRef, layersPanelDragStartRef]);
+  }, [isToolsPanelDragging, isLayersPanelDragging, isGeoServerPanelDragging, 
+      toolsPanelDragStartRef, layersPanelDragStartRef, geoServerPanelDragStartRef]);
 
   const fetchOSMData = useCallback(async () => {
     if (!drawingSourceRef.current) {
@@ -746,24 +783,23 @@ export default function GeoMapperClient() {
       setIsFetchingOSM(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addLayer, toast]);
+  }, [addLayer]);
 
 
   const toggleDrawingTool = useCallback((toolType: 'Polygon' | 'LineString' | 'Point') => {
     if (!mapRef.current || !drawingSourceRef.current) return;
 
-    if (activeDrawTool === toolType) { // If the same tool is clicked, deactivate it
+    if (activeDrawTool === toolType) {
       if (drawInteractionRef.current) {
         mapRef.current.removeInteraction(drawInteractionRef.current);
         drawInteractionRef.current.dispose();
         drawInteractionRef.current = null;
       }
       setActiveDrawTool(null);
-      return; // Exit early
+      return;
     }
 
-    // If a different tool or no tool is active, set up the new one
-    if (drawInteractionRef.current) { // Remove any existing draw interaction
+    if (drawInteractionRef.current) {
       mapRef.current.removeInteraction(drawInteractionRef.current);
       drawInteractionRef.current.dispose();
       drawInteractionRef.current = null;
@@ -776,7 +812,7 @@ export default function GeoMapperClient() {
     mapRef.current.addInteraction(newDrawInteraction);
     drawInteractionRef.current = newDrawInteraction;
     setActiveDrawTool(toolType);
-    if (isInspectModeActive) setIsInspectModeActive(false); // Deactivate inspect mode if activating drawing
+    if (isInspectModeActive) setIsInspectModeActive(false);
   }, [activeDrawTool, isInspectModeActive]);
 
   const stopDrawingTool = useCallback(() => {
@@ -794,7 +830,7 @@ export default function GeoMapperClient() {
       toast("Todos los dibujos han sido eliminados.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, []);
 
   const saveDrawnFeaturesAsKML = useCallback(() => {
     if (!drawingSourceRef.current || drawingSourceRef.current.getFeatures().length === 0) {
@@ -815,7 +851,7 @@ export default function GeoMapperClient() {
       toast("No se pudieron guardar los dibujos KML.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, []);
 
   const handleDownloadOSMLayers = useCallback(async () => {
     setIsDownloading(true);
@@ -914,7 +950,6 @@ export default function GeoMapperClient() {
                     featuresFoundForShp = true;
                     const layerFileName = layer.name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/\s+/g, '_');
 
-                    // Create a valid GeoJSON FeatureCollection for this layer
                     const layerGeoJsonFeatures = olFeatures.map(olFeature => {
                         const geoJsonFeature = geoJsonFormatter.writeFeatureObject(olFeature, {
                             dataProjection: 'EPSG:4326',
@@ -931,7 +966,7 @@ export default function GeoMapperClient() {
 
                     customTypesForShpWrite[layerFileName] = { points: [], lines: [], polygons: [] };
 
-                    layerGeoJsonFeatures.forEach(geoJsonFeature => { // Iterate over already transformed and sanitized features
+                    layerGeoJsonFeatures.forEach(geoJsonFeature => {
                         const geomType = geoJsonFeature.geometry?.type;
                         if (geomType === 'Point' || geomType === 'MultiPoint') {
                             customTypesForShpWrite[layerFileName].points.push(geoJsonFeature);
@@ -948,7 +983,7 @@ export default function GeoMapperClient() {
         if (!featuresFoundForShp) throw new Error("No hay entidades en las capas OSM para exportar como Shapefile.");
 
         const shpWriteOptions = {
-          folder: 'shapefiles_osm', // Differentiate folder name
+          folder: 'shapefiles_osm',
           types: customTypesForShpWrite
         };
 
@@ -971,7 +1006,7 @@ export default function GeoMapperClient() {
       setIsDownloading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, downloadFormat, toast]);
+  }, [layers, downloadFormat]);
 
   const handleChangeBaseLayer = useCallback((newBaseLayerId: string) => {
     if (mapRef.current) {
@@ -1012,7 +1047,7 @@ export default function GeoMapperClient() {
         setCurrentInspectedLayerName(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, processAndDisplayFeatures, toast]);
+  }, [layers, processAndDisplayFeatures]);
 
   const handleFetchGeoServerLayers = useCallback(async () => {
     if (!geoServerUrlInput.trim()) {
@@ -1038,14 +1073,13 @@ export default function GeoMapperClient() {
       }
 
       const capabilitiesUrl = `${url}/wms?service=WMS&version=1.3.0&request=GetCapabilities`;
-      // Use a relative path for the proxy URL
       const proxyApiUrl = `/api/geoserver-proxy?url=${encodeURIComponent(capabilitiesUrl)}`;
 
-      const response = await fetch(proxyApiUrl); 
+      const response = await fetch(proxyApiUrl);
 
       if (!response.ok) {
-         const errorData = await response.json().catch(() => ({ 
-           error: "Error desconocido del proxy o respuesta no JSON", 
+         const errorData = await response.json().catch(() => ({
+           error: "Error desconocido del proxy o respuesta no JSON",
            details: `Proxy status: ${response.status} ${response.statusText}`
          }));
          console.error("Error desde el proxy de GeoServer:", errorData, "Status:", response.status, response.statusText);
@@ -1061,19 +1095,18 @@ export default function GeoMapperClient() {
         console.error("GeoServer ServiceException:", errorNode.textContent);
         throw new Error(`Error de GeoServer: ${errorNode.textContent || 'Error desconocido en la respuesta XML de GeoServer.'}`);
       }
-      
-      const exceptionTextNode = xmlDoc.querySelector("ExceptionText"); // For some GeoServer error formats
+
+      const exceptionTextNode = xmlDoc.querySelector("ExceptionText");
       if(exceptionTextNode && exceptionTextNode.textContent?.trim()) {
         console.error("GeoServer ExceptionText:", exceptionTextNode.textContent);
         throw new Error(`Error de GeoServer: ${exceptionTextNode.textContent.trim()}`);
       }
 
-
       const discovered: GeoServerDiscoveredLayer[] = [];
       const layerNodes = xmlDoc.querySelectorAll("Capability > Layer > Layer, WMS_Capabilities > Capability > Layer > Layer");
 
       if (layerNodes.length === 0) {
-           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer"); // Try root layers if nested aren't found
+           const topLayerNodes = xmlDoc.querySelectorAll("Capability > Layer");
             topLayerNodes.forEach(node => {
                  const nameElement = node.querySelector("Name");
                 const titleElement = node.querySelector("Title");
@@ -1099,15 +1132,14 @@ export default function GeoMapperClient() {
           });
       }
 
-
-      if (discovered.length === 0 && !errorNode && !exceptionTextNode) { // Check if no layers found AND no explicit error was parsed
-        const ogcExceptionNode = xmlDoc.querySelector("ows\\:ExceptionText"); // OGC standard exception
+      if (discovered.length === 0 && !errorNode && !exceptionTextNode) {
+        const ogcExceptionNode = xmlDoc.querySelector("ows\\:ExceptionText");
         if (ogcExceptionNode && ogcExceptionNode.textContent) {
              console.error("GeoServer OGC Exception:", ogcExceptionNode.textContent);
              throw new Error(`Error de GeoServer (OGC): ${ogcExceptionNode.textContent}`);
         }
         const rawXmlForDebugging = xmlDoc.documentElement.outerHTML;
-        if (rawXmlForDebugging.length < 5000) { // Log snippet if not too long
+        if (rawXmlForDebugging.length < 5000) {
             console.warn("GeoServer GetCapabilities XML structure might be unexpected or empty. Response snippet:", rawXmlForDebugging.substring(0, 1000));
         } else {
             console.warn("GeoServer GetCapabilities XML structure might be unexpected or empty. Response is large, check network tab for full XML.");
@@ -1117,7 +1149,6 @@ export default function GeoMapperClient() {
         setGeoServerDiscoveredLayers(discovered);
         toast(`${discovered.length} capas encontradas en GeoServer.`);
       }
-      // If an error was thrown earlier, it would have been caught by the catch block.
 
     } catch (error: any) {
       console.error("Error conectando a GeoServer:", error);
@@ -1127,7 +1158,7 @@ export default function GeoMapperClient() {
       setIsLoadingGeoServerLayers(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoServerUrlInput, toast]);
+  }, [geoServerUrlInput]);
 
   const handleAddGeoServerLayerToMap = useCallback((layerName: string, layerTitle: string) => {
     if (!mapRef.current || !geoServerUrlInput.trim()) {
@@ -1152,10 +1183,9 @@ export default function GeoMapperClient() {
         if (geoserverBaseWmsUrl.toLowerCase().includes('/geoserver')) {
              geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
         } else {
-             geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms'; // Default assumption
+             geoserverBaseWmsUrl = geoserverBaseWmsUrl + '/wms';
         }
     }
-
 
     const wmsSource = new TileWMS({
         url: geoserverBaseWmsUrl,
@@ -1185,13 +1215,13 @@ export default function GeoMapperClient() {
     toast(`Capa "${layerTitle || layerName}" añadida al mapa.`);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoServerUrlInput, addLayer, toast]);
+  }, [geoServerUrlInput, addLayer]);
 
 
   const layersPanelRenderConfig = {
     baseLayers: true,
     layers: true,
-    geoServer: true,
+    geoServer: false, // GeoServer section moved to its own panel
     inspector: true,
   };
   const toolsPanelRenderConfig = {
@@ -1199,6 +1229,14 @@ export default function GeoMapperClient() {
     osmCapabilities: true,
     drawing: true,
     geoServer: false,
+  };
+  const geoServerPanelRenderConfig = { // New render config for GeoServer panel
+    baseLayers: false,
+    layers: false,
+    geoServer: true,
+    inspector: false,
+    osmCapabilities: false,
+    drawing: false,
   };
 
   return (
@@ -1229,13 +1267,14 @@ export default function GeoMapperClient() {
              width: `${PANEL_WIDTH}px`,
              top: `${layersPanelPosition.y}px`,
              left: `${layersPanelPosition.x}px`,
+             maxHeight: 'calc(100vh - 2 * var(--panel-padding, 16px) - 64px)' // 64px for header
           }}
         >
           <div
             className="p-2 bg-gray-700/80 flex items-center justify-between cursor-grab rounded-t-lg"
             onMouseDown={(e) => handlePanelMouseDown(e, 'layers')}
           >
-            <h2 className="text-sm font-semibold">Capas y Conexiones</h2>
+            <h2 className="text-sm font-semibold">Capas y Utilitarios</h2>
             <Button variant="ghost" size="icon" onClick={toggleLayersPanelCollapse} className="h-6 w-6 text-white hover:bg-gray-600/80">
               {isLayersPanelCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               <span className="sr-only">{isLayersPanelCollapsed ? 'Expandir' : 'Colapsar'}</span>
@@ -1243,7 +1282,7 @@ export default function GeoMapperClient() {
           </div>
 
           {!isLayersPanelCollapsed && (
-            <div className="flex-1 min-h-0 bg-transparent" style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
+            <div className="flex-1 min-h-0 bg-transparent" style={{ overflowY: 'auto' }}>
               <MapControls
                   renderConfig={layersPanelRenderConfig}
                   availableBaseLayers={availableBaseLayersForSelect}
@@ -1254,40 +1293,26 @@ export default function GeoMapperClient() {
                   onRemoveLayer={removeLayer}
                   onZoomToLayerExtent={zoomToLayerExtent}
                   onShowLayerTable={handleShowLayerTable}
-                  onAddLayer={addLayer}
+                  onAddLayer={addLayer} // For file uploads
                   isInspectModeActive={isInspectModeActive}
                   onToggleInspectMode={() => {
                     const newInspectModeState = !isInspectModeActive;
                     setIsInspectModeActive(newInspectModeState);
-                    if (activeDrawTool && newInspectModeState) {
-                       stopDrawingTool(); // Stop drawing if activating inspector
-                    }
+                    if (activeDrawTool && newInspectModeState) stopDrawingTool();
                     if (!newInspectModeState) {
                       setIsFeatureAttributesPanelVisible(false);
                       setSelectedFeatureAttributes(null);
                       setCurrentInspectedLayerName(null);
                     }
                   }}
-                  activeDrawTool={null}
-                  onToggleDrawingTool={() => {}}
-                  onStopDrawingTool={() => {}}
-                  onClearDrawnFeatures={() => {}}
-                  onSaveDrawnFeaturesAsKML={() => {}}
-                  isFetchingOSM={false}
-                  onFetchOSMDataTrigger={() => {}}
-                  osmCategoriesForSelection={[]}
-                  selectedOSMCategoryIds={[]}
-                  onSelectedOSMCategoriesChange={() => {}}
-                  downloadFormat={downloadFormat}
-                  onDownloadFormatChange={() => {}}
-                  onDownloadOSMLayers={() => {}}
-                  isDownloading={false}
-                  geoServerUrlInput={geoServerUrlInput}
-                  onGeoServerUrlChange={setGeoServerUrlInput}
-                  onFetchGeoServerLayers={handleFetchGeoServerLayers}
-                  geoServerDiscoveredLayers={geoServerDiscoveredLayers}
-                  isLoadingGeoServerLayers={isLoadingGeoServerLayers}
-                  onAddGeoServerLayerToMap={handleAddGeoServerLayerToMap}
+                  // Pass empty/default for props not used by this panel's config
+                  activeDrawTool={null} onToggleDrawingTool={() => {}} onStopDrawingTool={() => {}}
+                  onClearDrawnFeatures={() => {}} onSaveDrawnFeaturesAsKML={() => {}}
+                  isFetchingOSM={false} onFetchOSMDataTrigger={() => {}}
+                  osmCategoriesForSelection={[]} selectedOSMCategoryIds={[]} onSelectedOSMCategoriesChange={() => {}}
+                  downloadFormat="" onDownloadFormatChange={() => {}} onDownloadOSMLayers={() => {}} isDownloading={false}
+                  geoServerUrlInput="" onGeoServerUrlChange={() => {}} onFetchGeoServerLayers={() => {}}
+                  geoServerDiscoveredLayers={[]} isLoadingGeoServerLayers={false} onAddGeoServerLayerToMap={() => {}}
               />
             </div>
           )}
@@ -1301,6 +1326,7 @@ export default function GeoMapperClient() {
              width: `${PANEL_WIDTH}px`,
              top: `${toolsPanelPosition.y}px`,
              left: `${toolsPanelPosition.x}px`,
+             maxHeight: 'calc(100vh - 2 * var(--panel-padding, 16px) - 64px)'
           }}
         >
           <div
@@ -1310,21 +1336,15 @@ export default function GeoMapperClient() {
             <h2 className="text-sm font-semibold">Herramientas</h2>
             <Button variant="ghost" size="icon" onClick={toggleToolsPanelCollapse} className="h-6 w-6 text-white hover:bg-gray-600/80">
               {isToolsPanelCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-              <span className="sr-only">{isToolsPanelCollapsed ? 'Expandir' : 'Colapsar'}</span>
             </Button>
           </div>
-
           {!isToolsPanelCollapsed && (
-            <div className="flex-1 min-h-0 bg-transparent" style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
+            <div className="flex-1 min-h-0 bg-transparent" style={{ overflowY: 'auto' }}>
               <MapControls
                   renderConfig={toolsPanelRenderConfig}
-                  onAddLayer={addLayer}
-                  isInspectModeActive={false}
-                  onToggleInspectMode={() => {}}
+                  onAddLayer={() => {}} // Not used for file uploads here
                   activeDrawTool={activeDrawTool}
-                  onToggleDrawingTool={(toolType) => {
-                     toggleDrawingTool(toolType);
-                  }}
+                  onToggleDrawingTool={toggleDrawingTool}
                   onStopDrawingTool={stopDrawingTool}
                   onClearDrawnFeatures={clearDrawnFeatures}
                   onSaveDrawnFeaturesAsKML={saveDrawnFeaturesAsKML}
@@ -1337,20 +1357,62 @@ export default function GeoMapperClient() {
                   onDownloadFormatChange={setDownloadFormat}
                   onDownloadOSMLayers={handleDownloadOSMLayers}
                   isDownloading={isDownloading}
-                  availableBaseLayers={[]}
-                  activeBaseLayerId={""}
-                  onChangeBaseLayer={() => {}}
-                  layers={[]}
-                  onToggleLayerVisibility={() => {}}
-                  onRemoveLayer={() => {}}
-                  onZoomToLayerExtent={() => {}}
-                  onShowLayerTable={() => {}}
-                  geoServerUrlInput=""
-                  onGeoServerUrlChange={() => {}}
-                  onFetchGeoServerLayers={() => {}}
-                  geoServerDiscoveredLayers={[]}
-                  isLoadingGeoServerLayers={false}
-                  onAddGeoServerLayerToMap={() => {}}
+                  // Pass empty/default for props not used by this panel's config
+                  availableBaseLayers={[]} activeBaseLayerId="" onChangeBaseLayer={() => {}}
+                  layers={[]} onToggleLayerVisibility={() => {}} onRemoveLayer={() => {}}
+                  onZoomToLayerExtent={() => {}} onShowLayerTable={() => {}}
+                  isInspectModeActive={false} onToggleInspectMode={() => {}}
+                  geoServerUrlInput="" onGeoServerUrlChange={() => {}} onFetchGeoServerLayers={() => {}}
+                  geoServerDiscoveredLayers={[]} isLoadingGeoServerLayers={false} onAddGeoServerLayerToMap={() => {}}
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* GeoServer Panel (New - Right, below Tools) */}
+        <div
+          ref={geoServerPanelRef}
+          className="absolute bg-gray-800/60 backdrop-blur-md rounded-lg shadow-xl flex flex-col text-white overflow-hidden z-30"
+          style={{
+             width: `${PANEL_WIDTH}px`,
+             top: `${geoServerPanelPosition.y}px`,
+             left: `${geoServerPanelPosition.x}px`,
+             maxHeight: 'calc(100vh - 2 * var(--panel-padding, 16px) - 64px)'
+          }}
+        >
+          <div
+            className="p-2 bg-gray-700/80 flex items-center justify-between cursor-grab rounded-t-lg"
+            onMouseDown={(e) => handlePanelMouseDown(e, 'geoserver')}
+          >
+             <div className="flex items-center">
+                <ServerIcon className="mr-2 h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold">Conexión GeoServer</h2>
+            </div>
+            <Button variant="ghost" size="icon" onClick={toggleGeoServerPanelCollapse} className="h-6 w-6 text-white hover:bg-gray-600/80">
+              {isGeoServerPanelCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
+          </div>
+          {!isGeoServerPanelCollapsed && (
+            <div className="flex-1 min-h-0 bg-transparent" style={{ overflowY: 'auto' }}>
+              <MapControls
+                  renderConfig={geoServerPanelRenderConfig}
+                  geoServerUrlInput={geoServerUrlInput}
+                  onGeoServerUrlChange={setGeoServerUrlInput}
+                  onFetchGeoServerLayers={handleFetchGeoServerLayers}
+                  geoServerDiscoveredLayers={geoServerDiscoveredLayers}
+                  isLoadingGeoServerLayers={isLoadingGeoServerLayers}
+                  onAddGeoServerLayerToMap={handleAddGeoServerLayerToMap}
+                  // Pass empty/default for props not used by this panel's config
+                  onAddLayer={() => {}}
+                  availableBaseLayers={[]} activeBaseLayerId="" onChangeBaseLayer={() => {}}
+                  layers={[]} onToggleLayerVisibility={() => {}} onRemoveLayer={() => {}}
+                  onZoomToLayerExtent={() => {}} onShowLayerTable={() => {}}
+                  isInspectModeActive={false} onToggleInspectMode={() => {}}
+                  activeDrawTool={null} onToggleDrawingTool={() => {}} onStopDrawingTool={() => {}}
+                  onClearDrawnFeatures={() => {}} onSaveDrawnFeaturesAsKML={() => {}}
+                  isFetchingOSM={false} onFetchOSMDataTrigger={() => {}}
+                  osmCategoriesForSelection={[]} selectedOSMCategoryIds={[]} onSelectedOSMCategoriesChange={() => {}}
+                  downloadFormat="" onDownloadFormatChange={() => {}} onDownloadOSMLayers={() => {}} isDownloading={false}
               />
             </div>
           )}
@@ -1360,5 +1422,5 @@ export default function GeoMapperClient() {
     </div>
   );
 }
-
+    
     
