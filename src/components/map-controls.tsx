@@ -532,20 +532,20 @@ const MapControls: React.FC<MapControlsProps> = ({
                     <ScrollArea className="h-32 border border-white/10 p-2 rounded-md bg-black/10">
                         <ul className="space-y-1.5">
                             {geoServerDiscoveredLayers.map((gsLayer) => (
-                                <li key={gsLayer.name} className="flex items-center justify-between p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/20 transition-colors">
-                                    <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white" title={`${gsLayer.title} (${gsLayer.name})`}>
-                                        {gsLayer.title} <span className="text-gray-400 text-xxs">({gsLayer.name})</span>
-                                    </span>
+                                <li key={gsLayer.name} className="flex items-center p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/20 transition-colors">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="text-xs h-6 px-2 bg-green-600/30 hover:bg-green-500/50 border-green-500/50 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="text-xs h-6 px-2 mr-2 bg-green-600/30 hover:bg-green-500/50 border-green-500/50 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                                         onClick={() => onAddGeoServerLayerToMap(gsLayer.name, gsLayer.title)}
                                         disabled={gsLayer.addedToMap}
                                         title={gsLayer.addedToMap ? "Capa ya añadida" : "Añadir capa al mapa"}
                                     >
                                         {gsLayer.addedToMap ? 'Añadida' : 'Añadir'}
                                     </Button>
+                                    <span className="flex-1 cursor-default truncate text-xs font-medium text-white overflow-hidden whitespace-nowrap" title={`${gsLayer.title} (${gsLayer.name})`}>
+                                        {gsLayer.title} <span className="text-gray-400 text-xxs">({gsLayer.name})</span>
+                                    </span>
                                 </li>
                             ))}
                         </ul>
