@@ -440,21 +440,21 @@ const MapControls: React.FC<MapControlsProps> = ({
                   <ScrollArea className="max-h-48 p-2"> 
                     <ul className="space-y-1.5">
                       {layers.map((layer) => (
-                        <li key={layer.id} className="flex items-center justify-between p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/15 transition-colors">
+                        <li key={layer.id} className="flex items-center p-1.5 rounded-md border border-white/15 bg-black/10 hover:bg-white/15 transition-colors overflow-hidden">
                            <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => onToggleLayerVisibility(layer.id)}
-                              className="h-6 w-6 text-white hover:bg-gray-600/80 p-0 mr-2"
+                              className="h-6 w-6 text-white hover:bg-gray-600/80 p-0 mr-2 flex-shrink-0"
                               aria-label={`Alternar visibilidad para ${layer.name}`}
                               title={layer.visible ? "Ocultar capa" : "Mostrar capa"}
                             >
                               {layer.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                             </Button>
-                          <span className="flex-1 cursor-default truncate pr-1 text-xs font-medium text-white min-w-0" title={layer.name}>
+                          <span className="flex-1 cursor-default text-xs font-medium text-white truncate min-w-0" title={layer.name}>
                             {layer.name}
                           </span>
-                          <div className="flex items-center space-x-0.5">
+                          <div className="flex items-center space-x-0.5 flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
